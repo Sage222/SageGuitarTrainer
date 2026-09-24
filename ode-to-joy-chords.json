@@ -1,0 +1,36 @@
+{
+  "label": "Beethoven — Ode to Joy (Chords)",
+  "type": "chords",
+  "chordProgression": [
+    [
+      "C",
+      4
+    ],
+    [
+      "G",
+      4
+    ],
+    [
+      "Am",
+      4
+    ],
+    [
+      "F",
+      4
+    ],
+    [
+      "C",
+      4
+    ],
+    [
+      "G",
+      4
+    ],
+    [
+      "C",
+      4
+    ]
+  ],
+  "repeat": 2,
+  "bpm": 120
+}

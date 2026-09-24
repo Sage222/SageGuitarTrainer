@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sage Guitar Trainer</title>
+<style>
+  :root {
+    --panel: #171b2e;
+    --accent: #4fd1c5;
+    --accent2: #f6ad55;
+    --bad: #fc8181;
+    --good: #68d391;
+    --text: #e2e8f0;
+    --muted: #8891a7;
+    --maxw: min(1500px, 95vw);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: linear-gradient(160deg, #0b0e1a, #131731);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 { margin: 6px 0 2px 0; font-size: 1.6rem; letter-spacing: 1px; }
+  h1 span { color: var(--accent); }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
+  .tab-btn {
+    background: #171b2e; color: var(--muted); border: 1px solid #2c3358;
+    border-radius: 999px; padding: 8px 18px; cursor: pointer; font-size: 0.85rem;
+  }
+  .tab-btn.active { background: var(--accent); color: #08181a; border-color: var(--accent); font-weight: 600; }
+
+  .panel {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    width: 100%;
+    max-width: var(--maxw);
+    margin-bottom: 16px;
+  }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .controls .group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  select, button, input[type=number], input[type=text], textarea {
+    background: #1f2440; color: var(--text); border: 1px solid #2c3358;
+    border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; cursor: pointer;
+    font-family: inherit;
+  }
+  input[type=number] { width: 80px; cursor: text; }
+  input[type=text] { cursor: text; }
+  input[type=range] { cursor: pointer; width: 140px; vertical-align: middle; }
+  textarea { cursor: text; width: 100%; resize: vertical; }
+  select:hover, button:hover { border-color: var(--accent); }
+  button.primary { background: linear-gradient(135deg, var(--accent), #319795); color: #08181a; font-weight: 600; border: none; }
+  button.primary:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  #loopBtn.on { background: #319795; color: #08181a; font-weight: 700; border-color: var(--accent); }
+  #lyricsBtn.on { background: var(--accent); color: #08181a; font-weight: 700; }
+  #noteSoundBtn.on { background: var(--accent); color: #08181a; font-weight: 700; }
+
+  #startBtn { background: var(--good); color: #08181a; font-weight: 700; border: none; }
+  #startBtn:hover { filter: brightness(1.08); }
+  #startBtn.btn-pause { background: var(--bad); color: #2a0a0a; }
+
+  .song-type-badge {
+    font-size: 0.7rem; padding: 3px 10px; border-radius: 999px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .song-type-badge.lead { background: #2c3358; color: var(--accent); }
+  .song-type-badge.chords { background: #3a2f16; color: var(--accent2); }
+
+  .favourite-control {
+    display: inline-flex; align-items: center; gap: 5px; color: var(--accent2);
+    font-size: 0.82rem; cursor: pointer; user-select: none;
+  }
+  .favourite-control input { accent-color: var(--accent2); cursor: pointer; }
+
+
+  .lyric-speed-group { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--muted); }
+
+  .stats { display: flex; gap: 22px; margin-top: 10px; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; align-items: center; }
+  .stats b { color: var(--text); font-size: 1.05rem; }
+
+  #stageWrap { display:flex; gap: 14px; width: 100%; max-width: var(--maxw); align-items: stretch; }
+  #stage {
+    position: relative; flex: 1; height: 430px;
+    background: #0b0e1c; border-radius: 14px; overflow: hidden;
+    box-shadow: inset 0 0 0 1px #232a4a, 0 8px 30px rgba(0,0,0,0.4);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  #chordDiagram {
+    width: 140px; background: #0b0e1c; border-radius: 14px;
+    box-shadow: inset 0 0 0 1px #232a4a, 0 8px 30px rgba(0,0,0,0.4);
+    display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 4px;
+  }
+  #chordDiagram .cd-title { font-weight: 700; font-size: 1rem; color: var(--accent2); }
+  #chordDiagram svg { width: 100%; }
+
+  #lyricsPanel {
+    display: none; width: 220px; max-height: 430px; overflow-y: auto;
+    background: #0b0e1c; border-radius: 14px;
+    box-shadow: inset 0 0 0 1px #232a4a, 0 8px 30px rgba(0,0,0,0.4);
+    padding: 12px; font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; color: var(--muted);
+  }
+  #lyricsPanel.active { display: block; }
+
+  .pitch-readout { display: flex; gap: 24px; align-items: center; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  .note-badge {
+    width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; background: #1a1f38; border: 3px solid #2c3358; font-size: 1.6rem; font-weight: 700;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .note-badge small { font-size: 0.6rem; color: var(--muted); font-weight: 400; }
+  .note-badge.locked { border-color: var(--good); transform: scale(1.08); }
+
+  .meter { width: 220px; height: 14px; border-radius: 7px; background: #1a1f38; position: relative; overflow: hidden; border: 1px solid #2c3358; }
+  .meter .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--muted); }
+  .meter .bar { position: absolute; top: 0; bottom: 0; width: 6px; background: var(--accent2); border-radius: 3px; left: 50%; transition: left 0.08s linear; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1a1f38; border: 1px solid var(--accent); padding: 10px 18px; border-radius: 10px;
+    font-size: 0.85rem; display: none; z-index: 10; max-width: 80vw;
+  }
+
+  .tuner-wrap { display: none; flex-direction: column; align-items: center; width: 100%; max-width: var(--maxw); }
+  .tuner-wrap.active { display: flex; }
+  .tuner-mic-status {
+    font-size: 0.85rem; padding: 8px 14px; border-radius: 8px; margin-bottom: 14px;
+    background: #1a1f38; border: 1px solid #2c3358; color: var(--muted);
+  }
+  .tuner-mic-status.ready { color: var(--good); border-color: var(--good); }
+  .strings-row { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; justify-content: center; }
+  .string-btn {
+    background: #1a1f38; border: 2px solid #2c3358; border-radius: 10px; padding: 10px 16px;
+    color: var(--text); font-weight: 600; cursor: pointer; min-width: 64px; text-align: center;
+  }
+  .string-btn.selected { border-color: var(--accent); background: #17332f; }
+  .string-btn small { display: block; color: var(--muted); font-size: 0.65rem; font-weight: 400; margin-top: 2px; }
+
+  .tuner-dial { width: 320px; height: 180px; position: relative; margin-bottom: 14px; }
+  .tuner-dial svg { width: 100%; height: 100%; }
+  .tuner-needle-label { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 2.2rem; font-weight: 700; }
+  .tuner-cents { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+  .tuner-status { font-size: 1rem; font-weight: 700; margin-top: 6px; height: 22px; }
+  .tuner-status.good { color: var(--good); }
+  .tuner-status.bad { color: var(--accent2); }
+  .tuner-level { width: 220px; height: 8px; border-radius: 4px; background: #1a1f38; border: 1px solid #2c3358; margin-top: 16px; overflow: hidden; }
+  .tuner-level-bar { height: 100%; width: 0%; background: var(--accent); transition: width 0.06s linear; }
+  .tuner-level-label { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+
+  .calib-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; font-size: 0.85rem; color: var(--muted); }
+
+  .import-wrap { display: none; flex-direction: column; width: 100%; max-width: var(--maxw); gap: 14px; }
+  .import-wrap.active { display: flex; }
+  .import-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+  .import-grid input[type=text] { flex: 1; min-width: 200px; }
+  .import-preview { background: #0b0e1c; border-radius: 10px; padding: 12px; font-size: 0.8rem; color: var(--muted); max-height: 160px; overflow-y: auto; }
+  .import-preview b { color: var(--text); }
+  .custom-song-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #1a1f38; border-radius: 8px; margin-bottom: 6px; font-size: 0.85rem; }
+  .custom-song-row button { padding: 4px 10px; font-size: 0.75rem; background: #3a1f1f; border-color: var(--bad); color: var(--bad); }
+
+  .library-wrap { display: none; flex-direction: column; width: 100%; max-width: var(--maxw); gap: 14px; }
+  .library-wrap.active { display: flex; }
+  .lib-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #1a1f38;
+    border-radius: 8px; margin-bottom: 6px; flex-wrap: wrap;
+  }
+  .lib-row input[type=text] { flex: 1; min-width: 160px; }
+  .lib-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; }
+  .lib-tag.builtin { background: #2c3358; color: var(--muted); }
+  .lib-tag.custom { background: #17332f; color: var(--good); }
+  .lib-row button { font-size: 0.75rem; padding: 5px 10px; }
+  .lib-row button.danger { background: #3a1f1f; border-color: var(--bad); color: var(--bad); }
+  .lib-row button.save { background: #17332f; border-color: var(--good); color: var(--good); }
+  .lib-section-title { color: var(--text); font-weight: 600; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Sage <span>Guitar Trainer</span></h1>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tabPractice">🎯 Practice</button>
+  <button class="tab-btn" id="tabImport">📥 Import Tab</button>
+  <button class="tab-btn" id="tabLibrary">📚 Library</button>
+  <button class="tab-btn" id="tabTuner">🎸 Tuner</button>
+</div>
+
+<div class="panel">
+  <div class="controls">
+    <div class="group">
+      <button id="micBtn" class="primary">🎤 Enable Mic</button>
+      <span id="micStatusText" style="font-size:0.8rem;color:var(--muted);">Microphone not connected</span>
+    </div>
+    <div class="group">
+      <button id="loadSongsBtn" title="Load songs and grant BPM write access in one step">📁 Load Songs Folder</button>
+      <span id="bpmSaveStatus" style="font-size:0.8rem;color:var(--muted);">BPM not linked</span>
+      <button id="downloadBpmBtn" hidden title="Download this song with updated BPM when direct file writing is unavailable">⬇ Download Updated JSON</button>
+      <span id="songsFolderStatus" style="font-size:0.8rem;color:var(--muted);">No songs loaded yet</span>
+    </div>
+    <div class="calib-row" style="margin-top:0;">
+      <label for="a4">Reference A4 (Hz):</label>
+      <input type="number" id="a4" value="440" min="415" max="466" step="1">
+      <button id="a4Reset">Reset to 440</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= PRACTICE MODE ============================= -->
+<div id="practiceView">
+  <div class="panel">
+    <div class="controls">
+      <div class="group">
+        <label for="exercise">Song / Exercise:</label>
+        <select id="exercise"></select>
+        <span class="song-type-badge lead" id="songTypeBadge" style="display:none;">Lead</span>
+        <label class="favourite-control" title="Move this song to the top of the song list">
+          <input type="checkbox" id="favouriteCheckbox">
+          <span>★ Favourite</span>
+        </label>
+        <label for="bpm">BPM:</label>
+        <input id="bpm" type="number" min="30" max="300" step="1" value="100" title="Beats per minute; edit live and press Enter to save">
+      </div>
+      <div class="group">
+        <button id="startBtn">▶ Start</button>
+        <button id="resetBtn">⟲ Reset</button>
+        <button id="loopBtn">🔁 Repeat Forever</button>
+        <button id="lyricsBtn">📜 Lyrics</button>
+        <button id="noteSoundBtn">🔊 Note Sound</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div>Score: <b id="score">0</b></div>
+      <div>Streak: <b id="streak">0</b></div>
+      <div>Accuracy: <b id="accuracy">0%</b></div>
+      <div>Hits: <b id="hits">0</b>/<b id="total">0</b></div>
+      <div class="lyric-speed-group">
+        <span>🔈</span>
+        <input type="range" id="noteVolumeSlider" min="0" max="100" value="60" step="5" title="Note/chord playback volume">
+        <span>🔊</span>
+        <span>Note volume</span>
+      </div>
+      <div id="chordModeNote" style="display:none;color:var(--accent2);">Chord mode: strum the full chord and hold briefly through the line.</div>
+      <div id="loopModeNote" style="display:none;color:var(--accent);">Loop: ON — will repeat until you press Reset.</div>
+      <div id="noMicNote" style="display:none;color:var(--accent2);">🎧 No mic connected — previewing only, nothing is being scored.</div>
+      <div class="lyric-speed-group" id="lyricSpeedGroup" style="display:none;">
+        <span>🐢</span>
+        <input type="range" id="lyricsSpeedSlider" min="20" max="300" value="90" step="10" title="Lyrics scroll speed (independent of chord tempo)">
+        <span>🐇</span>
+        <span>Lyrics speed</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="stageWrap">
+    <div id="stage">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div id="chordDiagram" style="display:none;">
+      <div class="cd-title" id="cdName">–</div>
+      <svg viewBox="0 0 100 120" id="cdSvg"></svg>
+      <div style="font-size:0.65rem;color:var(--muted);text-align:center;">current chord shape</div>
+    </div>
+    <div id="lyricsPanel"></div>
+  </div>
+
+  <div class="pitch-readout">
+    <div class="note-badge" id="noteBadge">–<small>Hz: --</small></div>
+    <div class="meter"><div class="zero"></div><div class="bar" id="meterBar"></div></div>
+  </div>
+</div>
+
+<!-- ============================= TUNER MODE ============================= -->
+<div id="tunerView" class="tuner-wrap">
+  <div class="tuner-mic-status" id="tunerMicStatus">🎤 Microphone not connected — click "Enable Mic" above first</div>
+  <div class="panel" style="width:100%;">
+    <div style="text-align:center;color:var(--muted);font-size:0.85rem;margin-bottom:10px;">
+      Pick a string (or leave on Auto) and play it. The dial shows how sharp/flat you are in cents.
+    </div>
+    <div class="strings-row">
+      <div class="string-btn selected" data-midi="0">Auto<small>detect</small></div>
+      <div class="string-btn" data-midi="40">E<small>low · E2</small></div>
+      <div class="string-btn" data-midi="45">A<small>A2</small></div>
+      <div class="string-btn" data-midi="50">D<small>D3</small></div>
+      <div class="string-btn" data-midi="55">G<small>G3</small></div>
+      <div class="string-btn" data-midi="59">B<small>B3</small></div>
+      <div class="string-btn" data-midi="64">e<small>high · E4</small></div>
+    </div>
+  </div>
+
+  <div class="tuner-dial">
+    <svg viewBox="0 0 320 180">
+      <path d="M20,170 A140,140 0 0 1 300,170" fill="none" stroke="#2c3358" stroke-width="10"/>
+      <line id="tickCenter" x1="160" y1="170" x2="160" y2="35" stroke="#4fd1c5" stroke-width="2" stroke-dasharray="2,4"/>
+      <line id="needle" x1="160" y1="170" x2="160" y2="45" stroke="#f6ad55" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="160" cy="170" r="7" fill="#e2e8f0"/>
+    </svg>
+  </div>
+  <div class="tuner-needle-label" id="tunerNoteLabel">–</div>
+  <div class="tuner-cents" id="tunerCentsLabel">Play a string to begin</div>
+  <div class="tuner-status" id="tunerStatus"></div>
+  <div class="tuner-level"><div class="tuner-level-bar" id="tunerLevelBar"></div></div>
+  <div class="tuner-level-label">input level (helps confirm the mic is actually reaching this tab)</div>
+</div>
+
+<!-- ============================= IMPORT TAB ============================= -->
+<div id="importView" class="import-wrap">
+  <div class="panel" style="width:100%;">
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:12px;">
+      Paste a tab/chord chart you've copied from any site (chords + lyrics together, exactly as
+      shown on the page). This never leaves your machine — everything is parsed locally in your
+      browser.
+    </div>
+    <div class="import-grid">
+      <input type="text" id="importTitle" placeholder="Song title (e.g. Creep)">
+      <input type="text" id="importArtist" placeholder="Artist (e.g. Radiohead)">
+    </div>
+    <textarea id="importText" rows="14" placeholder="Paste the full tab text here — chord lines above lyric lines, [Verse]/[Chorus] labels, instrumental bars like |(G) D/F# Em D| are all handled..." style="margin-top:10px;"></textarea>
+    <div class="import-grid" style="margin-top:10px;">
+      <button id="parsePreviewBtn" class="primary">🔍 Parse Preview</button>
+      <button id="saveImportBtn" disabled>💾 Save as Custom Song</button>
+      <button id="clearImportBtn">Clear</button>
+    </div>
+    <div class="import-preview" id="importPreview" style="margin-top:10px; display:none;"></div>
+  </div>
+
+  <div class="panel" style="width:100%;">
+    <div style="color:var(--text);font-weight:600;margin-bottom:8px;">Your imported songs</div>
+    <div id="customSongList" style="color:var(--muted);font-size:0.85rem;">No custom songs yet.</div>
+  </div>
+</div>
+
+<!-- ============================= LIBRARY ============================= -->
+<div id="libraryView" class="library-wrap">
+  <div class="panel" style="width:100%;">
+    <div class="lib-section-title">Songs Folder</div>
+    <div style="color:var(--muted);font-size:0.8rem;margin-bottom:10px;">
+      Built-in songs now live as individual <b>.json</b> files in a folder called <b>songs</b>,
+      next to riff_trainer.html — not baked into the app. Click "Load Songs Folder" (top of the
+      Practice tab) and select that folder; if Brave grants write permission, BPM edits also save
+      to those JSON files. The browser may ask you to renew permission on a future visit. Each file's <b>"type"</b> field
+      ("lead" or "chords") decides how it's practiced — no manual mode toggle needed.
+    </div>
+  </div>
+
+  <div class="panel" style="width:100%;">
+    <div class="lib-section-title">Portable Storage (Custom Imports)</div>
+    <div style="color:var(--muted);font-size:0.8rem;margin-bottom:10px;" id="folderLinkStatus">
+      Not linked — your imported songs are only stored in this browser's local storage.
+    </div>
+    <div style="color:var(--accent2);font-size:0.75rem;margin-bottom:10px;">
+      Using Brave? Folder linking is off by default for privacy. Enable it at
+      <b>brave://flags/#file-system-access-api</b> → Enabled → Relaunch, then click "Link Folder" again.
+      Or just use Export/Import Backup below, which needs no flags and works in any browser.
+    </div>
+    <div class="import-grid">
+      <button id="linkFolderBtn">📁 Link Folder Next to This File (Chrome/Edge)</button>
+      <button id="exportJsonBtn">⬇ Export Backup (.json)</button>
+      <button id="importJsonBtn">⬆ Import Backup (.json)</button>
+      <input type="file" id="importJsonInput" accept=".json" style="display:none;">
+    </div>
+    <div style="color:var(--muted);font-size:0.75rem;margin-top:8px;">
+      This is only for songs you Import via the Import Tab screen (kept in localStorage) — the
+      built-in songs folder is separate and always loaded via "Load Songs Folder" above.
+    </div>
+  </div>
+
+  <div class="panel" style="width:100%;">
+    <div class="lib-section-title">All songs</div>
+    <div style="color:var(--muted);font-size:0.8rem;margin-bottom:10px;">
+      Rename anything, edit the original pasted tab for custom songs, or hide/delete entries.
+      Hiding a built-in song only removes it from your dropdown for this browser — it's still safe
+      as a file in your songs folder.
+    </div>
+    <div id="libraryList"></div>
+  </div>
+  <div class="panel" style="width:100%;">
+    <div class="lib-section-title">Hidden built-in songs</div>
+    <div id="hiddenList" style="color:var(--muted);font-size:0.85rem;">None hidden.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+/* Local-songs-only migration: songs must come from files selected in the
+   songs folder, never from browser storage. This removes legacy imported
+   songs, old song-folder cache data, and browser-only library overrides. */
+(function enforceLocalSongsOnly() {
+  localStorage.removeItem('sageGuitarTrainer.customSongs');
+  localStorage.removeItem('sageGuitarTrainer.songsFolderCache');
+  localStorage.removeItem('sageGuitarTrainer.hiddenBuiltins');
+  localStorage.removeItem('sageGuitarTrainer.labelOverrides');
+})();
+
+
+/* One-time migration: remove legacy imported/custom songs that were stored
+   in browser localStorage by older versions of Sage Guitar Trainer.
+   Built-in songs loaded from the songs folder are not affected. */
+(function clearLegacyCustomSongsOnce() {
+  const migrationKey = 'sageGuitarTrainer.clearLegacyCustomSongs.v1';
+  if (localStorage.getItem(migrationKey)) return;
+  localStorage.removeItem('sageGuitarTrainer.customSongs');
+  localStorage.setItem(migrationKey, 'done');
+})();
+
+/* ---------------------------------------------------------------------
+   Note utilities
+--------------------------------------------------------------------- */
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+let A4 = 440;
+
+function freqToNote(freq) {
+  if (!freq || freq <= 0) return null;
+  const midi = 69 + 12 * Math.log2(freq / A4);
+  const rounded = Math.round(midi);
+  const name = NOTE_NAMES[(rounded % 12 + 12) % 12];
+  const octave = Math.floor(rounded / 12) - 1;
+  const centsOff = (midi - rounded) * 100;
+  return { name, octave, midi: rounded, cents: centsOff, freq };
+}
+function noteToFreq(midi) { return A4 * Math.pow(2, (midi - 69) / 12); }
+function centsFromTarget(freq, targetMidi) {
+  return 1200 * Math.log2(freq / noteToFreq(targetMidi));
+}
+
+const STRINGS = [
+  { name: "E", midi: 40 }, { name: "A", midi: 45 }, { name: "D", midi: 50 },
+  { name: "G", midi: 55 }, { name: "B", midi: 59 }, { name: "e", midi: 64 }
+];
+const TAB_ORDER = [5,4,3,2,1,0];
+
+function midiToStringFret(midi) {
+  let best = null;
+  for (let i = 0; i < STRINGS.length; i++) {
+    const fret = midi - STRINGS[i].midi;
+    if (fret >= 0 && fret <= 15) { if (!best || fret < best.fret) best = { stringIdx: i, fret }; }
+  }
+  return best;
+}
+function nearestStringMidi(midi) {
+  let best = null, bestDiff = Infinity;
+  for (const s of STRINGS) { const d = Math.abs(midi - s.midi); if (d < bestDiff) { bestDiff = d; best = s.midi; } }
+  return best;
+}
+
+/* ---------------------------------------------------------------------
+   Calibration
+--------------------------------------------------------------------- */
+const a4Input = document.getElementById('a4');
+a4Input.addEventListener('input', () => {
+  const v = parseFloat(a4Input.value);
+  if (!isNaN(v) && v > 300 && v < 500) A4 = v;
+});
+document.getElementById('a4Reset').addEventListener('click', () => { a4Input.value = 440; A4 = 440; });
+
+const bpmInput = document.getElementById('bpm');
+const BEAT_PIXELS = 150;
+function getBpm() {
+  const bpm = Number(bpmInput.value);
+  return Number.isFinite(bpm) && bpm >= 30 && bpm <= 300 ? bpm : 100;
+}
+function applyBpmSpeed() { speed = BEAT_PIXELS * getBpm() / 60; }
+bpmInput.addEventListener('input', applyBpmSpeed);
+
+/* ---------------------------------------------------------------------
+   Chord shapes (open-position, standard tuning) for the common chords
+   used by the built-in songs. Anything not listed here still works —
+   getChordShape() derives a movable barre shape automatically for any
+   major/minor/dominant7/maj7/min7 chord.
+--------------------------------------------------------------------- */
+const CHORD_SHAPES = {
+  "C": { frets: [null,3,2,0,1,0], pcs: [0,4,7] },
+  "G": { frets: [3,2,0,0,0,3], pcs: [7,11,2] },
+  "D": { frets: [null,0,0,2,3,2], pcs: [2,6,9] },
+  "Em": { frets: [0,2,2,0,0,0], pcs: [4,7,11] },
+  "Am": { frets: [null,0,2,2,1,0], pcs: [9,0,4] },
+  "F": { frets: [null,3,3,2,1,1], pcs: [5,9,0] },
+  "A": { frets: [null,0,2,2,2,0], pcs: [9,1,4] },
+  "E": { frets: [0,2,2,1,0,0], pcs: [4,8,11] },
+  "Bm": { frets: [null,2,4,4,3,2], pcs: [11,2,6] },
+  "F#m": { frets: [2,4,4,2,2,2], pcs: [6,9,1] },
+  "D7": { frets: [null,null,0,2,1,2], pcs: [2,6,9,0] },
+  "G7": { frets: [3,2,0,0,0,1], pcs: [7,11,2,5] },
+  "E7": { frets: [0,2,0,1,0,0], pcs: [4,8,11,2] },
+  "Dm": { frets: [null,null,0,2,3,1], pcs: [2,5,9] },
+  "C7": { frets: [null,3,2,3,1,0], pcs: [0,4,7,10] }
+};
+
+const PITCH_CLASS = {
+  C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,F:5,'E#':5,'F#':6,Gb:6,
+  G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11
+};
+const QUALITY_INTERVALS = {
+  '': [0,4,7], 'maj': [0,4,7], 'M': [0,4,7],
+  'm': [0,3,7], 'min': [0,3,7], '-': [0,3,7],
+  '7': [0,4,7,10], 'maj7': [0,4,7,11], 'M7': [0,4,7,11],
+  'm7': [0,3,7,10], 'min7': [0,3,7,10],
+  'dim': [0,3,6], 'dim7': [0,3,6,9], 'm7b5': [0,3,6,10],
+  'aug': [0,4,8],
+  'sus2': [0,2,7], 'sus4': [0,5,7], 'sus': [0,5,7],
+  '6': [0,4,7,9], 'm6': [0,3,7,9],
+  '9': [0,4,7,10,2], 'maj9': [0,4,7,11,2], 'm9': [0,3,7,10,2],
+  'add9': [0,4,7,2],
+  '11': [0,4,7,10,2,5], '13': [0,4,7,10,2,9]
+};
+function parseChordName(raw) {
+  const name = (raw || '').trim();
+  const m = name.match(/^([A-G])([#b]?)([^\/]*)/);
+  if (!m) return { pcs: [0,4,7] };
+  const rootKey = m[1] + (m[2] || '');
+  const root = PITCH_CLASS[rootKey] ?? PITCH_CLASS[m[1]] ?? 0;
+  let quality = (m[3] || '').trim();
+  let intervals = QUALITY_INTERVALS[quality];
+  if (!intervals) {
+    const stripped = quality.replace(/\(.*\)/g, '').trim();
+    intervals = QUALITY_INTERVALS[stripped] || QUALITY_INTERVALS[stripped.replace(/[0-9]+$/, '')] || [0,4,7];
+  }
+  return { pcs: intervals.map(iv => (root + iv) % 12) };
+}
+
+const BARRE_SHAPES = {
+  maj:  { E: [0,2,2,1,0,0], A: [null,0,2,2,2,0] },
+  min:  { E: [0,2,2,0,0,0], A: [null,0,2,2,1,0] },
+  dom7: { E: [0,2,0,1,0,0], A: [null,0,2,0,2,0] },
+  maj7: { E: [0,2,1,1,0,0], A: [null,0,2,1,2,0] },
+  min7: { E: [0,2,0,0,0,0], A: [null,0,2,0,1,0] }
+};
+const ROOT_STRING_PC = { E: 4, A: 9 };
+
+function qualityToBarreKind(quality) {
+  if (['', 'maj', 'M'].includes(quality)) return 'maj';
+  if (['m', 'min', '-'].includes(quality)) return 'min';
+  if (quality === '7') return 'dom7';
+  if (['maj7', 'M7'].includes(quality)) return 'maj7';
+  if (['m7', 'min7'].includes(quality)) return 'min7';
+  return null;
+}
+
+function computeBarreShape(rootPc, kind) {
+  const shapes = BARRE_SHAPES[kind];
+  if (!shapes) return null;
+  const nE = ((rootPc - ROOT_STRING_PC.E) % 12 + 12) % 12;
+  const nA = ((rootPc - ROOT_STRING_PC.A) % 12 + 12) % 12;
+  const candidates = [
+    { N: nE, offsets: shapes.E },
+    { N: nA, offsets: shapes.A }
+  ].sort((a, b) => a.N - b.N);
+  const best = candidates[0];
+  return best.offsets.map(o => (o === null ? null : o + best.N));
+}
+
+function getChordShape(chordName) {
+  if (CHORD_SHAPES[chordName]) return CHORD_SHAPES[chordName];
+  const m = (chordName || '').trim().match(/^([A-G])([#b]?)([^\/]*)/);
+  const { pcs } = parseChordName(chordName);
+  if (!m) return { frets: null, pcs };
+  const rootKey = m[1] + (m[2] || '');
+  const rootPc = PITCH_CLASS[rootKey] ?? PITCH_CLASS[m[1]] ?? 0;
+  const kind = qualityToBarreKind((m[3] || '').trim());
+  if (kind) {
+    const frets = computeBarreShape(rootPc, kind);
+    if (frets) return { frets, pcs };
+  }
+  return { frets: null, pcs };
+}
+
+/* ---------------------------------------------------------------------
+   Songs folder loader. Browsers can't silently list a local folder for
+   security reasons, so this uses a plain <input type=file webkitdirectory>
+   picker (works in every browser, no experimental flags needed, unlike
+   the File System Access API used below for portable custom-song
+   storage). Once loaded, the parsed song set is cached in localStorage
+   so you don't need to re-pick the folder every time you open the app —
+   only when you add/edit song files.
+--------------------------------------------------------------------- */
+const SONGS_CACHE_KEY = 'sageGuitarTrainer.songsFolderCache';
+let SONGS = {}; // built from songs/*.json files, keyed by filename (no extension)
+
+function repeatSeq(seq, times) {
+  let out = [];
+  for (let i = 0; i < times; i++) out = out.concat(seq);
+  return out;
+}
+
+function normalizeSongJson(raw, fallbackKey) {
+  const type = raw.type === 'chords' ? 'chords' : 'lead';
+  const label = raw.label || fallbackKey;
+  if (type === 'lead') {
+    const leadRepeat = raw.repeat || 3;
+    return {
+      label, type,
+      leadNotes: repeatSeq(raw.leadNotes || [], leadRepeat),
+      chordProgression: null,
+      lyrics: null, bpm: Number(raw.bpm) || null
+    };
+  }
+  const chordRepeat = raw.repeat || 2;
+  return {
+    label, type,
+    leadNotes: [],
+    chordProgression: repeatSeq(raw.chordProgression || [], chordRepeat),
+    lyrics: raw.lyrics || null, bpm: Number(raw.bpm) || null
+  };
+}
+
+function loadSongsCache() { return {}; }
+function saveSongsCache(obj) {}
+
+// Hidden folder-picker input, created once. webkitdirectory + multiple
+// gives us every file under the chosen folder (including subfolders),
+// each with a .webkitRelativePath so we can filter to *.json.
+const folderInput = document.createElement('input');
+folderInput.type = 'file';
+folderInput.webkitdirectory = true;
+folderInput.multiple = true;
+folderInput.style.display = 'none';
+document.body.appendChild(folderInput);
+
+folderInput.addEventListener('change', async () => {
+  const files = Array.from(folderInput.files || []).filter(f => f.name.toLowerCase().endsWith('.json'));
+  if (!files.length) {
+    showToast('No .json files found in that folder.', 4000);
+    return;
+  }
+  const loaded = {};
+  let errors = 0;
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const raw = JSON.parse(text);
+      const key = file.name.replace(/\.json$/i, '');
+      loaded[key] = normalizeSongJson(raw, key);
+    } catch (e) {
+      errors++;
+      console.warn('Could not parse song file', file.name, e);
+    }
+  }
+  SONGS = loaded;
+  saveSongsCache(loaded);
+  updateSongsFolderStatus();
+  rebuildSongDropdown();
+  renderLibrary();
+  showToast(`Loaded ${Object.keys(loaded).length} song(s)${errors ? `, ${errors} file(s) failed to parse` : ''}.`, 4000);
+});
+
+// Unified folder picker is registered after the BPM persistence helpers.
+
+/* ---------------------------------------------------------------------
+   Custom song storage (from Import Tab), hidden-builtin list, label
+   overrides — unrelated to the songs-folder cache above.
+--------------------------------------------------------------------- */
+const CUSTOM_SONGS_KEY = 'sageGuitarTrainer.customSongs';
+const HIDDEN_KEY = 'sageGuitarTrainer.hiddenBuiltins';
+const LABELS_KEY = 'sageGuitarTrainer.labelOverrides';
+let linkedDirHandle = null;
+
+function loadCustomSongs() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_SONGS_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function saveCustomSongs(obj) { localStorage.setItem(CUSTOM_SONGS_KEY, JSON.stringify(obj)); syncToFolder(); }
+
+function loadHidden() {
+  try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function saveHidden(arr) { localStorage.setItem(HIDDEN_KEY, JSON.stringify(arr)); syncToFolder(); }
+
+function loadLabelOverrides() {
+  try { return JSON.parse(localStorage.getItem(LABELS_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function saveLabelOverrides(obj) { localStorage.setItem(LABELS_KEY, JSON.stringify(obj)); syncToFolder(); }
+
+/* ---------------------------------------------------------------------
+   Portable Storage (custom imports only): File System Access API
+   (Chrome/Edge, or Brave with the flag enabled).
+--------------------------------------------------------------------- */
+const IDB_NAME = 'sageGuitarTrainerDB';
+const IDB_STORE = 'handles';
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(val, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+const folderLinkStatus = document.getElementById('folderLinkStatus');
+function updateLinkStatus(linked, needsPermission) {
+  if (linked && needsPermission) {
+    folderLinkStatus.textContent = '📁 A folder was linked previously — click "Link Folder" again to re-grant access this session.';
+  } else if (linked) {
+    folderLinkStatus.textContent = '✅ Linked — imported songs auto-save to sage-songs-library.json next to this HTML file.';
+  } else {
+    folderLinkStatus.textContent = "Not linked — your imported songs are only stored in this browser's local storage.";
+  }
+}
+
+async function syncToFolder() {
+  if (!linkedDirHandle) return;
+  try {
+    let perm = await linkedDirHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await linkedDirHandle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return;
+    const fileHandle = await linkedDirHandle.getFileHandle('sage-songs-library.json', { create: true });
+    const writable = await fileHandle.createWritable();
+    const payload = {
+      customSongs: loadCustomSongs(),
+      hiddenBuiltins: loadHidden(),
+      labelOverrides: loadLabelOverrides(),
+      savedAt: new Date().toISOString()
+    };
+    await writable.write(JSON.stringify(payload, null, 2));
+    await writable.close();
+  } catch (e) { console.warn('Folder sync failed', e); }
+}
+
+async function loadFromFolderIfLinked() {
+  let handle;
+  try { handle = await idbGet('folderHandle'); } catch (e) { return; }
+  if (!handle) return;
+  try {
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') { linkedDirHandle = handle; updateLinkStatus(true, true); return; }
+    linkedDirHandle = handle;
+    const fileHandle = await handle.getFileHandle('sage-songs-library.json', { create: false }).catch(() => null);
+    if (fileHandle) {
+      const file = await fileHandle.getFile();
+      const data = JSON.parse(await file.text());
+      if (data.customSongs) localStorage.setItem(CUSTOM_SONGS_KEY, JSON.stringify(data.customSongs));
+      if (data.hiddenBuiltins) localStorage.setItem(HIDDEN_KEY, JSON.stringify(data.hiddenBuiltins));
+      if (data.labelOverrides) localStorage.setItem(LABELS_KEY, JSON.stringify(data.labelOverrides));
+    }
+    updateLinkStatus(true);
+  } catch (e) { updateLinkStatus(false); }
+}
+
+async function pickFolder() {
+  if (!window.showDirectoryPicker) {
+    showToast('Folder linking is disabled by default in this browser (common in Brave/Firefox). In Brave: visit brave://flags/#file-system-access-api, enable it, relaunch, then try again. Otherwise use Export/Import Backup below — it works everywhere.', 7000);
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ id: 'sageGuitarTrainerFolder', mode: 'readwrite' });
+    await idbSet('folderHandle', handle);
+    linkedDirHandle = handle;
+    await syncToFolder();
+    updateLinkStatus(true);
+    showToast('Folder linked — custom songs now auto-save next to your HTML file.', 4000);
+  } catch (e) { /* user cancelled the picker */ }
+}
+
+document.getElementById('linkFolderBtn').addEventListener('click', pickFolder);
+
+document.getElementById('exportJsonBtn').addEventListener('click', () => {
+  const payload = {
+    customSongs: loadCustomSongs(),
+    hiddenBuiltins: loadHidden(),
+    labelOverrides: loadLabelOverrides(),
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'sage-songs-library.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+const importJsonInput = document.getElementById('importJsonInput');
+document.getElementById('importJsonBtn').addEventListener('click', () => importJsonInput.click());
+importJsonInput.addEventListener('change', async () => {
+  const file = importJsonInput.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.customSongs) saveCustomSongs(data.customSongs);
+    if (data.hiddenBuiltins) saveHidden(data.hiddenBuiltins);
+    if (data.labelOverrides) saveLabelOverrides(data.labelOverrides);
+    rebuildSongDropdown(); renderCustomSongList(); renderLibrary();
+    showToast('Backup imported.');
+  } catch (e) { showToast('Could not read that file: ' + e.message, 4000); }
+  importJsonInput.value = '';
+});
+
+/* ---------------------------------------------------------------------
+   Tab-text parser (Import Tab)
+--------------------------------------------------------------------- */
+const CHORD_TOKEN_RE = /^[A-G](#|b)?(maj7|maj9|min7|dim7|m7b5|sus2|sus4|add9|maj|min|dim|aug|sus|m|M)?[0-9]{0,2}(\/[A-G](#|b)?)?$/;
+
+function cleanToken(tok) {
+  return tok.replace(/[|%()]/g, '');
+}
+
+function isChordLine(line) {
+  const tokens = line.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  const cleaned = tokens.map(cleanToken).filter(Boolean);
+  if (!cleaned.length) return false;
+  const chordLike = cleaned.filter(t => CHORD_TOKEN_RE.test(t));
+  return chordLike.length / cleaned.length >= 0.6;
+}
+
+function extractChordsWithPositions(line) {
+  const hits = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(line)) !== null) {
+    const c = cleanToken(m[0]);
+    if (c && CHORD_TOKEN_RE.test(c)) hits.push({ chord: c, col: m.index });
+  }
+  return hits;
+}
+
+function parseTabText(raw) {
+  const lines = raw.split(/\r?\n/);
+  const chordSeq = [];
+  const chordWords = [];
+  const lyricLines = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) { lyricLines.push(''); i++; continue; }
+    if (/^Page\s+\d+\/\d+$/i.test(trimmed)) { i++; continue; }
+    if (trimmed.startsWith('[')) { lyricLines.push('\n' + trimmed); i++; continue; }
+
+    if (isChordLine(trimmed)) {
+      const hits = extractChordsWithPositions(rawLine);
+      const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+      const nextTrimmed = nextLine.trim();
+      const pairedLyric = (nextTrimmed && !isChordLine(nextTrimmed) && !nextTrimmed.startsWith('[')) ? nextLine : null;
+
+      for (let j = 0; j < hits.length; j++) {
+        const startCol = j === 0 ? 0 : hits[j].col;
+        const endCol = j + 1 < hits.length ? hits[j + 1].col : (pairedLyric ? pairedLyric.length : startCol);
+        const word = pairedLyric !== null ? pairedLyric.slice(startCol, endCol).trim() : '';
+        chordSeq.push(hits[j].chord);
+        chordWords.push(word);
+      }
+
+      if (pairedLyric !== null) {
+        lyricLines.push(pairedLyric.replace(/\s+$/, ''));
+        i += 2;
+        continue;
+      }
+      i++;
+      continue;
+    }
+
+    lyricLines.push(rawLine.replace(/\s+$/, ''));
+    i++;
+  }
+  return { chordSeq, chordWords, lyrics: lyricLines.join('\n').trim() };
+}
+
+function flattenLyrics(text) {
+  return text
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('['))
+    .join('   •   ');
+}
+
+/* ---------------------------------------------------------------------
+   Import Tab view wiring
+--------------------------------------------------------------------- */
+const importTitle = document.getElementById('importTitle');
+const importArtist = document.getElementById('importArtist');
+const importText = document.getElementById('importText');
+const importPreview = document.getElementById('importPreview');
+const parsePreviewBtn = document.getElementById('parsePreviewBtn');
+const saveImportBtn = document.getElementById('saveImportBtn');
+const clearImportBtn = document.getElementById('clearImportBtn');
+const customSongList = document.getElementById('customSongList');
+
+let lastParsed = null;
+let editingKey = null;
+
+parsePreviewBtn.addEventListener('click', () => {
+  const raw = importText.value;
+  if (!raw.trim()) { showToast('Paste some tab text first.'); return; }
+  lastParsed = parseTabText(raw);
+  const uniqueChords = [...new Set(lastParsed.chordSeq)];
+  const lyricLineCount = lastParsed.lyrics.split('\n').filter(l => l.trim()).length;
+  importPreview.style.display = 'block';
+  importPreview.innerHTML = `
+    <div><b>${lastParsed.chordSeq.length}</b> chord hits detected, <b>${uniqueChords.length}</b> unique chords: ${uniqueChords.join(', ') || '(none found)'}</div>
+    <div style="margin-top:6px;"><b>${lyricLineCount}</b> lyric lines detected</div>
+    <div style="margin-top:6px;color:${uniqueChords.length ? 'var(--good)':'var(--bad)'};">
+      ${uniqueChords.length ? 'Looks parseable — hit Save to add it as a playable song.' : 'No chords detected — make sure chord letters (like G, C, Am, D7) are on their own line above the lyrics.'}
+    </div>`;
+  saveImportBtn.disabled = uniqueChords.length === 0;
+});
+
+/* IMPORTS_DOWNLOAD_INDIVIDUAL_SONG_JSON_V1 */
+saveImportBtn.addEventListener('click', () => {
+  if (!lastParsed || !lastParsed.chordSeq.length) return;
+
+  const title = importTitle.value.trim() || 'Untitled Import';
+  const artist = importArtist.value.trim();
+  const slug = (artist + '-' + title)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'custom-song';
+
+  // Individual portable song file. It is deliberately not saved to
+  // browser localStorage. Move/download it into songs/, then use
+  // Load Songs Folder to add it to the app.
+  const songFile = {
+    label: (artist ? artist + ' — ' : '') + title,
+    type: 'chords',
+    chordProgression: lastParsed.chordSeq.map(chord => [chord, 2]),
+    repeat: 1
+  };
+
+  if (lastParsed.lyrics && lastParsed.lyrics.trim()) {
+    songFile.lyrics = lastParsed.lyrics;
+  }
+
+  const blob = new Blob([JSON.stringify(songFile, null, 2)], {
+    type: 'application/json'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = slug + '-chords.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast(
+    'Downloaded ' + link.download + '. Move it into your songs folder, then click Load Songs Folder.',
+    7000
+  );
+  editingKey = null;
+});
+
+clearImportBtn.addEventListener('click', () => {
+  importTitle.value = ''; importArtist.value = ''; importText.value = '';
+  importPreview.style.display = 'none'; lastParsed = null; saveImportBtn.disabled = true;
+  editingKey = null;
+});
+
+function loadImportForEditing(key) {
+  const custom = loadCustomSongs();
+  const song = custom[key];
+  if (!song) return;
+  const labelMatch = song.label.match(/^🎵 \[Custom\]\s*(?:(.*?)\s—\s)?(.*)$/);
+  importArtist.value = labelMatch ? (labelMatch[1] || '') : '';
+  importTitle.value = labelMatch ? (labelMatch[2] || '') : song.label;
+  importText.value = song.rawText || '';
+  editingKey = key;
+  importPreview.style.display = 'none';
+  activateTab('import');
+  showToast('Loaded for editing — tweak the text, Parse Preview, then Save to overwrite.', 4000);
+}
+
+function renderCustomSongList() {
+  customSongList.innerHTML = 'Import Tab downloads individual JSON files. Move a downloaded file into your songs folder, then use Load Songs Folder.';
+}
+
+/* ---------------------------------------------------------------------
+   Library tab
+--------------------------------------------------------------------- */
+const libraryList = document.getElementById('libraryList');
+const hiddenList = document.getElementById('hiddenList');
+
+function renderLibrary() {
+  const hidden = loadHidden();
+  const overrides = loadLabelOverrides();
+  const custom = loadCustomSongs();
+
+  let rows = '';
+  for (const [key, ex] of Object.entries(SONGS)) {
+    if (hidden.includes(key)) continue;
+    const label = overrides[key] || ex.label;
+    rows += `
+      <div class="lib-row" data-key="${key}" data-type="builtin">
+        <span class="lib-tag builtin">${ex.type === 'chords' ? 'Chords' : 'Lead'}</span>
+        <input type="text" class="lib-name" value="${label.replace(/"/g,'&quot;')}">
+        <button class="save rename-btn">Save Name</button>
+        <button class="danger hide-btn">Hide</button>
+      </div>`;
+  }
+  libraryList.innerHTML = rows || '<div style="color:var(--muted);">No songs found. Try "Load Songs Folder" above.</div>';
+
+  libraryList.querySelectorAll('.lib-row').forEach(row => {
+    const key = row.dataset.key;
+    const type = row.dataset.type;
+    const nameInput = row.querySelector('.lib-name');
+
+    row.querySelector('.rename-btn').addEventListener('click', () => {
+      const newLabel = nameInput.value.trim();
+      if (!newLabel) return;
+      if (type === 'builtin') {
+        const ov = loadLabelOverrides();
+        ov[key] = newLabel;
+        saveLabelOverrides(ov);
+      } else {
+        const c = loadCustomSongs();
+        if (c[key]) { c[key].label = newLabel; saveCustomSongs(c); }
+      }
+      rebuildSongDropdown();
+      renderCustomSongList();
+      showToast('Renamed.');
+    });
+
+    if (type === 'builtin') {
+      row.querySelector('.hide-btn').addEventListener('click', () => {
+        const h = loadHidden();
+        if (!h.includes(key)) h.push(key);
+        saveHidden(h);
+        rebuildSongDropdown();
+        renderLibrary();
+      });
+    } else {
+      // No browser-backed custom songs in local-files-only mode.
+    }
+  });
+
+  const hiddenKeys = loadHidden().filter(k => SONGS[k]);
+  if (!hiddenKeys.length) { hiddenList.innerHTML = 'None hidden.'; return; }
+  hiddenList.innerHTML = hiddenKeys.map(k => `
+    <div class="lib-row" data-key="${k}">
+      <span>${(loadLabelOverrides()[k] || SONGS[k].label)}</span>
+      <button class="save restore-btn">Restore</button>
+    </div>`).join('');
+  hiddenList.querySelectorAll('.restore-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('.lib-row');
+      const key = row.dataset.key;
+      const h = loadHidden().filter(k => k !== key);
+      saveHidden(h);
+      rebuildSongDropdown();
+      renderLibrary();
+    });
+  });
+}
+
+/* ---------------------------------------------------------------------
+   Populate exercise dropdown from SONGS (loaded from folder) + custom
+   imports. No manual Lead/Chords toggle — each song's own "type" field
+   decides how it plays; the dropdown just shows a small badge for it.
+--------------------------------------------------------------------- */
+const exerciseSel = document.getElementById('exercise');
+const songTypeBadge = document.getElementById('songTypeBadge');
+
+function rebuildSongDropdown() {
+  const prevValue = exerciseSel.value;
+  const hidden = loadHidden();
+  const overrides = loadLabelOverrides();
+  exerciseSel.innerHTML = '';
+  for (const [key, ex] of Object.entries(SONGS)) {
+    if (hidden.includes(key)) continue;
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = overrides[key] || ex.label;
+    exerciseSel.appendChild(opt);
+  }
+  if ([...exerciseSel.options].some(o => o.value === prevValue)) exerciseSel.value = prevValue;
+  updateModeAvailability();
+}
+function getSong(key) {
+  const song = SONGS[key];
+  if (!song) return null;
+  const overrides = loadLabelOverrides();
+  return overrides[key] ? { ...song, label: overrides[key] } : song;
+}
+
+/* ---------------------------------------------------------------------
+   Mode is now fully automatic — derived from the selected song's own
+   "type" field, not a user-clickable toggle.
+--------------------------------------------------------------------- */
+let mode = 'lead';
+let loopEnabled = false;
+let lyricsVisible = false;
+const chordModeNote = document.getElementById('chordModeNote');
+const loopModeNote = document.getElementById('loopModeNote');
+const chordDiagramBox = document.getElementById('chordDiagram');
+const loopBtn = document.getElementById('loopBtn');
+const lyricsBtn = document.getElementById('lyricsBtn');
+const lyricsPanel = document.getElementById('lyricsPanel');
+const lyricSpeedGroup = document.getElementById('lyricSpeedGroup');
+const lyricsSpeedSlider = document.getElementById('lyricsSpeedSlider');
+const noMicNote = document.getElementById('noMicNote');
+
+function updateModeAvailability() {
+  const ex = getSong(exerciseSel.value);
+  if (!ex) {
+    songTypeBadge.style.display = 'none';
+    return;
+  }
+  mode = ex.type === 'chords' ? 'chords' : 'lead';
+  songTypeBadge.style.display = '';
+  songTypeBadge.textContent = mode === 'chords' ? 'Chords' : 'Lead';
+  songTypeBadge.classList.toggle('lead', mode === 'lead');
+  songTypeBadge.classList.toggle('chords', mode === 'chords');
+  chordModeNote.style.display = mode === 'chords' ? '' : 'none';
+  chordDiagramBox.style.display = mode === 'chords' ? 'flex' : 'none';
+  updateLyricsPanel();
+  refreshLyricTicker();
+}
+exerciseSel.addEventListener('change', updateModeAvailability);
+
+loopBtn.addEventListener('click', () => {
+  loopEnabled = !loopEnabled;
+  loopBtn.classList.toggle('on', loopEnabled);
+  loopModeNote.style.display = loopEnabled ? '' : 'none';
+});
+
+function updateLyricsPanel() {
+  const ex = getSong(exerciseSel.value);
+  const hasLyrics = ex && ex.lyrics;
+  lyricsBtn.disabled = !hasLyrics;
+  if (!hasLyrics) { lyricsVisible = false; }
+  lyricsPanel.classList.toggle('active', lyricsVisible && hasLyrics);
+  lyricsBtn.classList.toggle('on', lyricsVisible && hasLyrics);
+  lyricsPanel.textContent = hasLyrics ? ex.lyrics : '';
+}
+lyricsBtn.addEventListener('click', () => {
+  lyricsVisible = !lyricsVisible;
+  updateLyricsPanel();
+});
+
+/* ---------------------------------------------------------------------
+   Independent lyric ticker state
+--------------------------------------------------------------------- */
+let currentLyricTicker = '';
+let lyricOffset = 0;
+let lyricSpeed = 90;
+const LYRIC_START_DELAY = 4;
+let lyricDelayRemaining = 0;
+lyricsSpeedSlider.addEventListener('input', () => {
+  lyricSpeed = parseFloat(lyricsSpeedSlider.value);
+});
+function refreshLyricTicker() {
+  const ex = getSong(exerciseSel.value);
+  currentLyricTicker = (ex && ex.lyrics) ? flattenLyrics(ex.lyrics) : '';
+  lyricSpeedGroup.style.display = (mode === 'chords' && currentLyricTicker) ? 'flex' : 'none';
+}
+
+/* ---------------------------------------------------------------------
+   Chord diagram
+--------------------------------------------------------------------- */
+const cdSvg = document.getElementById('cdSvg');
+const cdName = document.getElementById('cdName');
+function renderChordDiagram(chordName) {
+  const shape = getChordShape(chordName);
+  cdName.textContent = chordName || "–";
+  if (!shape || !shape.frets) { cdSvg.innerHTML = '<text x="50" y="55" font-size="11" fill="#8891a7" text-anchor="middle">no diagram</text>'; return; }
+  const frets = shape.frets;
+  const maxFret = Math.max(1, ...frets.filter(f => f !== null));
+  const startFret = maxFret > 4 ? Math.min(...frets.filter(f => f > 0)) : 0;
+  let svg = "";
+  const stringsX = [10,28,46,64,82,100].map(x => x - 5);
+  for (let s = 0; s < 6; s++) {
+    svg += `<line x1="${stringsX[s]}" y1="15" x2="${stringsX[s]}" y2="105" stroke="#4a5580" stroke-width="1.5"/>`;
+    const f = frets[s];
+    if (f === null) svg += `<text x="${stringsX[s]}" y="8" font-size="10" fill="#fc8181" text-anchor="middle">x</text>`;
+    else if (f === 0) svg += `<text x="${stringsX[s]}" y="8" font-size="10" fill="#68d391" text-anchor="middle">o</text>`;
+  }
+  for (let fr = 0; fr <= 4; fr++) {
+    const y = 15 + fr * 22.5;
+    svg += `<line x1="5" y1="${y}" x2="105" y2="${y}" stroke="#4a5580" stroke-width="${fr===0?3:1}"/>`;
+  }
+  for (let s = 0; s < 6; s++) {
+    const f = frets[s];
+    if (f && f > 0) {
+      const displayFret = startFret > 0 ? (f - startFret + 1) : f;
+      const y = 15 + (displayFret - 0.5) * 22.5;
+      svg += `<circle cx="${stringsX[s]}" cy="${y}" r="6" fill="#f6ad55"/>`;
+    }
+  }
+  cdSvg.innerHTML = svg;
+}
+renderChordDiagram(null);
+
+/* ---------------------------------------------------------------------
+   Tab switching
+--------------------------------------------------------------------- */
+const tabPractice = document.getElementById('tabPractice');
+const tabTuner = document.getElementById('tabTuner');
+const tabImport = document.getElementById('tabImport');
+const tabLibrary = document.getElementById('tabLibrary');
+const practiceView = document.getElementById('practiceView');
+const tunerView = document.getElementById('tunerView');
+const importView = document.getElementById('importView');
+const libraryView = document.getElementById('libraryView');
+
+function activateTab(which) {
+  tabPractice.classList.toggle('active', which === 'practice');
+  tabTuner.classList.toggle('active', which === 'tuner');
+  tabImport.classList.toggle('active', which === 'import');
+  tabLibrary.classList.toggle('active', which === 'library');
+  practiceView.style.display = which === 'practice' ? '' : 'none';
+  tunerView.classList.toggle('active', which === 'tuner');
+  importView.classList.toggle('active', which === 'import');
+  libraryView.classList.toggle('active', which === 'library');
+  if (which === 'tuner') updateTunerMicStatus();
+  if (which === 'library') renderLibrary();
+}
+tabPractice.addEventListener('click', () => activateTab('practice'));
+tabTuner.addEventListener('click', () => activateTab('tuner'));
+tabImport.addEventListener('click', () => activateTab('import'));
+tabLibrary.addEventListener('click', () => activateTab('library'));
+
+/* ---------------------------------------------------------------------
+   Mic input (pitch/chroma detection for scoring)
+--------------------------------------------------------------------- */
+let audioCtx, analyserTime, analyserFreq, source, mediaStream;
+let micReady = false, running = false;
+
+const micBtn = document.getElementById('micBtn');
+const micStatusText = document.getElementById('micStatusText');
+const tunerMicStatus = document.getElementById('tunerMicStatus');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const toast = document.getElementById('toast');
+
+function updateTunerMicStatus() {
+  if (micReady) {
+    tunerMicStatus.textContent = "🎤 Microphone connected — play a string";
+    tunerMicStatus.classList.add('ready');
+  } else {
+    tunerMicStatus.textContent = "🎤 Microphone not connected — click \"Enable Mic\" above first";
+    tunerMicStatus.classList.remove('ready');
+  }
+}
+
+function showToast(msg, ms = 2500) {
+  toast.textContent = msg; toast.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(() => toast.style.display = 'none', ms);
+}
+
+micBtn.addEventListener('click', async () => {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') { await audioCtx.resume(); }
+    analyserTime = audioCtx.createAnalyser(); analyserTime.fftSize = 2048; analyserTime.smoothingTimeConstant = 0;
+    analyserFreq = audioCtx.createAnalyser(); analyserFreq.fftSize = 8192; analyserFreq.smoothingTimeConstant = 0.2;
+    source = audioCtx.createMediaStreamSource(mediaStream);
+    source.connect(analyserTime);
+    source.connect(analyserFreq);
+    micReady = true;
+    micBtn.textContent = "🎤 Mic Ready"; micBtn.disabled = true;
+    micStatusText.textContent = "Microphone connected";
+    updateTunerMicStatus();
+    noMicNote.style.display = 'none';
+    showToast("Microphone connected. Hit Start, or switch to the Tuner tab.");
+    requestAnimationFrame(pitchLoop);
+  } catch (err) {
+    showToast("Mic access denied or unavailable: " + err.message, 4000);
+  }
+});
+
+function autoCorrelate(buffer, sampleRate) {
+  const SIZE = buffer.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buffer[i] * buffer[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.008) return { freq: -1, rms };
+  let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+  for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buffer[i]) < thres) { r1 = i; break; } }
+  for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buffer[SIZE - i]) < thres) { r2 = SIZE - i; break; } }
+  const trimmed = buffer.slice(r1, r2);
+  const newSize = trimmed.length;
+  const c = new Array(newSize).fill(0);
+  for (let i = 0; i < newSize; i++) for (let j = 0; j < newSize - i; j++) c[i] += trimmed[j] * trimmed[j + i];
+  let d = 0;
+  while (d < newSize - 1 && c[d] > c[d + 1]) d++;
+  let maxval = -1, maxpos = -1;
+  for (let i = d; i < newSize; i++) if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+  let T0 = maxpos;
+  if (T0 <= 0) return { freq: -1, rms };
+  const x1 = c[T0 - 1] || 0, x2 = c[T0] || 0, x3 = c[T0 + 1] || 0;
+  const a = (x1 + x3 - 2 * x2) / 2, b = (x3 - x1) / 2;
+  if (a) T0 = T0 - b / (2 * a);
+  return { freq: sampleRate / T0, rms };
+}
+
+function computeChroma() {
+  const freqData = new Float32Array(analyserFreq.frequencyBinCount);
+  analyserFreq.getFloatFrequencyData(freqData);
+  const binHz = audioCtx.sampleRate / analyserFreq.fftSize;
+  const chroma = new Array(12).fill(0);
+  for (let i = 1; i < freqData.length; i++) {
+    const db = freqData[i];
+    if (db < -75) continue;
+    const freq = i * binHz;
+    if (freq < 70 || freq > 2200) continue;
+    const mag = Math.pow(10, db / 20);
+    const pc = ((Math.round(69 + 12 * Math.log2(freq / A4))) % 12 + 12) % 12;
+    chroma[pc] += mag;
+  }
+  const sum = chroma.reduce((a, b) => a + b, 0) || 1;
+  return chroma.map(v => v / sum);
+}
+function chordMatchScore(chroma, pcs) {
+  let inSum = 0, outSum = 0;
+  for (let pc = 0; pc < 12; pc++) { if (pcs.includes(pc)) inSum += chroma[pc]; else outSum += chroma[pc]; }
+  return inSum - outSum;
+}
+
+const noteBadge = document.getElementById('noteBadge');
+const meterBar = document.getElementById('meterBar');
+const bufTime = new Float32Array(2048);
+
+const needle = document.getElementById('needle');
+const tunerNoteLabel = document.getElementById('tunerNoteLabel');
+const tunerCentsLabel = document.getElementById('tunerCentsLabel');
+const tunerStatus = document.getElementById('tunerStatus');
+const tunerLevelBar = document.getElementById('tunerLevelBar');
+let selectedStringMidi = 0;
+
+document.querySelectorAll('.string-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.string-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedStringMidi = parseInt(btn.dataset.midi, 10);
+  });
+});
+
+function updateTunerDial(cents) {
+  const clamped = Math.max(-50, Math.min(50, cents));
+  const angleDeg = (clamped / 50) * 70;
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  const len = 125;
+  needle.setAttribute('x2', (160 + len * Math.cos(rad)).toFixed(1));
+  needle.setAttribute('y2', (170 + len * Math.sin(rad)).toFixed(1));
+  needle.setAttribute('stroke', Math.abs(cents) < 5 ? '#68d391' : (Math.abs(cents) < 15 ? '#f6ad55' : '#fc8181'));
+}
+
+window.__lastNote = null;
+window.__lastChroma = null;
+
+function pitchLoop() {
+  if (micReady && analyserTime) {
+    analyserTime.getFloatTimeDomainData(bufTime);
+    const { freq, rms } = autoCorrelate(bufTime, audioCtx.sampleRate);
+
+    const levelPct = Math.min(100, Math.round(rms * 800));
+    tunerLevelBar.style.width = levelPct + "%";
+
+    if (freq > 60 && freq < 1200) {
+      const note = freqToNote(freq);
+      noteBadge.innerHTML = `${note.name}${note.octave}<small>${freq.toFixed(1)} Hz</small>`;
+      const badgeCents = Math.max(-50, Math.min(50, note.cents));
+      meterBar.style.left = `calc(50% + ${badgeCents * 2}px)`;
+      meterBar.style.background = Math.abs(badgeCents) < 10 ? "var(--good)" : "var(--accent2)";
+      noteBadge.classList.toggle('locked', Math.abs(badgeCents) < 12);
+      window.__lastNote = note;
+
+      const targetMidi = selectedStringMidi || nearestStringMidi(note.midi);
+      const tunerCents = centsFromTarget(freq, targetMidi);
+      tunerNoteLabel.textContent = NOTE_NAMES[(targetMidi % 12 + 12) % 12];
+      tunerCentsLabel.textContent = `${freq.toFixed(1)} Hz  ·  ${tunerCents > 0 ? '+' : ''}${tunerCents.toFixed(0)} cents`;
+      updateTunerDial(tunerCents);
+      tunerStatus.className = Math.abs(tunerCents) < 5 ? "tuner-status good" : "tuner-status bad";
+      tunerStatus.textContent = Math.abs(tunerCents) < 5 ? "✓ IN TUNE" : (tunerCents > 0 ? "▲ Too sharp — tune down" : "▼ Too flat — tune up");
+    } else {
+      window.__lastNote = null;
+      tunerCentsLabel.textContent = levelPct > 3 ? "Signal detected, but no clear pitch — try plucking one string cleanly" : "Listening...";
+      tunerStatus.textContent = "";
+    }
+    if (mode === 'chords') window.__lastChroma = computeChroma();
+  }
+  requestAnimationFrame(pitchLoop);
+}
+
+/* ---------------------------------------------------------------------
+   Playback synth: plays the "correct" note/chord sound as it crosses
+   the hit line, independent of the mic-input AudioContext above (so it
+   works even without a mic connected).
+--------------------------------------------------------------------- */
+/* SAGE_PLUCKED_SOUND_V1 */
+let playbackCtx = null;
+let masterGain = null;
+let compressor = null;
+let noteVolume = 0.6;
+let noteSoundEnabled = false;
+const activeVoices = new Set();
+const noteSoundBtn = document.getElementById('noteSoundBtn');
+const noteVolumeSlider = document.getElementById('noteVolumeSlider');
+noteSoundBtn.classList.remove('on');
+
+function ensurePlaybackCtx() {
+  if (!playbackCtx) {
+    playbackCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = playbackCtx.createGain();
+    masterGain.gain.value = noteVolume;
+    compressor = playbackCtx.createDynamicsCompressor();
+    compressor.threshold.value = -18;
+    compressor.knee.value = 12;
+    compressor.ratio.value = 3;
+    compressor.attack.value = 0.004;
+    compressor.release.value = 0.18;
+    masterGain.connect(compressor).connect(playbackCtx.destination);
+  }
+  if (playbackCtx.state === 'suspended') playbackCtx.resume();
+}
+
+function stopAllNotes() {
+  if (!playbackCtx) return;
+  const now = playbackCtx.currentTime;
+  for (const voice of activeVoices) {
+    try {
+      voice.gain.gain.cancelScheduledValues(now);
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+      voice.gain.gain.linearRampToValueAtTime(0, now + 0.025);
+      voice.source.stop(now + 0.03);
+    } catch (error) { /* already finished */ }
+  }
+}
+
+noteSoundBtn.addEventListener('click', () => {
+  noteSoundEnabled = !noteSoundEnabled;
+  noteSoundBtn.classList.toggle('on', noteSoundEnabled);
+  if (!noteSoundEnabled) stopAllNotes();
+});
+
+noteVolumeSlider.addEventListener('input', () => {
+  noteVolume = Number(noteVolumeSlider.value) / 100;
+  if (masterGain && playbackCtx) {
+    masterGain.gain.setTargetAtTime(noteVolume, playbackCtx.currentTime, 0.015);
+  }
+});
+
+function makePluckBuffer(frequency, seconds) {
+  const sampleRate = playbackCtx.sampleRate;
+  const length = Math.max(2, Math.round(sampleRate / frequency));
+  const frames = Math.max(length + 2, Math.ceil(sampleRate * seconds));
+  const buffer = playbackCtx.createBuffer(1, frames, sampleRate);
+  const samples = buffer.getChannelData(0);
+  const ring = new Float32Array(length);
+  for (let i = 0; i < length; i++) ring[i] = (Math.random() * 2 - 1) * 0.8;
+  let pointer = 0;
+  for (let i = 0; i < frames; i++) {
+    const next = (pointer + 1) % length;
+    const sound = ring[pointer];
+    ring[pointer] = 0.996 * 0.5 * (ring[pointer] + ring[next]);
+    pointer = next;
+    const t = i / sampleRate;
+    const attack = Math.min(1, t / 0.006);
+    const decay = Math.exp(-3.5 * t / seconds);
+    const end = Math.min(1, (frames - i) / Math.max(1, sampleRate * 0.025));
+    samples[i] = sound * attack * decay * end;
+  }
+  return buffer;
+}
+
+function playSynthNote(freq, durationSec, when, voiceLevel = 0.42) {
+  if (!noteSoundEnabled || !playbackCtx || !Number.isFinite(freq) || freq < 65 || freq > 1400) return;
+  const seconds = Math.min(2.6, Math.max(0.14, Number(durationSec) || 0.3));
+  const time = Math.max(playbackCtx.currentTime, when ?? playbackCtx.currentTime);
+  const source = playbackCtx.createBufferSource();
+  source.buffer = makePluckBuffer(freq, seconds);
+  const gain = playbackCtx.createGain();
+  gain.gain.value = voiceLevel;
+  source.connect(gain).connect(masterGain);
+  const voice = {source, gain};
+  activeVoices.add(voice);
+  source.onended = () => {
+    activeVoices.delete(voice);
+    source.disconnect();
+    gain.disconnect();
+  };
+  source.start(time);
+}
+
+function playSynthChord(freqs, durationSec) {
+  if (!noteSoundEnabled || !playbackCtx || !Array.isArray(freqs)) return;
+  const pitches = freqs.filter(f => Number.isFinite(f) && f >= 65 && f <= 1400);
+  if (!pitches.length) return;
+  const time = playbackCtx.currentTime;
+  const voiceLevel = 0.55 / Math.sqrt(pitches.length);
+  pitches.forEach((freq, i) => playSynthNote(freq, durationSec, time + i * 0.018, voiceLevel));
+}
+
+startBtn.addEventListener('click', () => { if (running) stopAllNotes(); }, true);
+resetBtn.addEventListener('click', stopAllNotes, true);
+exerciseSel.addEventListener('change', () => { if (running) stopAllNotes(); }, true);
+
+/* ---------------------------------------------------------------------
+   6-string tab highway + independent lyrics ticker
+--------------------------------------------------------------------- */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const HIT_LINE_X = 150;
+const LEFT_MARGIN = 40;
+const LYRIC_STRIP_H = 54;
+let queue = [];
+let score = 0, streak = 0, hitCount = 0, totalCount = 0;
+let animId = null, lastTime = null, speed = 90;
+
+const scoreEl = document.getElementById('score'), streakEl = document.getElementById('streak');
+const accEl = document.getElementById('accuracy'), hitsEl = document.getElementById('hits'), totalEl = document.getElementById('total');
+function refreshStats() {
+  scoreEl.textContent = score; streakEl.textContent = streak;
+  hitsEl.textContent = hitCount; totalEl.textContent = totalCount;
+  accEl.textContent = totalCount ? Math.round((hitCount / totalCount) * 100) + "%" : "0%";
+}
+
+function laneY(stringIdx, h) {
+  const rowPos = TAB_ORDER.indexOf(stringIdx);
+  const top = 30, bottom = h - LYRIC_STRIP_H - 16;
+  return top + (rowPos / 5) * (bottom - top);
+}
+
+function buildQueue(preserveStats) {
+  const key = exerciseSel.value;
+  const song = getSong(key);
+  const w = canvas.clientWidth || 900;
+
+  if (mode === 'lead') {
+    const unitGap = BEAT_PIXELS;
+    let cumX = w + 200;
+    queue = song.leadNotes.map(([midi, dur]) => {
+      const sf = midiToStringFret(midi);
+      const n = { type: 'note', midi, dur, x: cumX, hit: false, missed: false, played: false, beatPx: unitGap, sf };
+      cumX += unitGap * dur;
+      return n;
+    });
+  } else {
+    const unitGap = BEAT_PIXELS;
+    let cumX = w + 200;
+    queue = song.chordProgression.map(([chord, dur]) => {
+      const n = { type: 'chord', chord, dur, x: cumX, width: unitGap * dur * 0.8, hit: false, missed: false, played: false, beatPx: unitGap, matchedMs: 0 };
+      cumX += unitGap * dur;
+      return n;
+    });
+    refreshLyricTicker();
+    if (!preserveStats) { lyricOffset = 0; lyricDelayRemaining = LYRIC_START_DELAY; }
+  }
+  if (!preserveStats) { hitCount = 0; score = 0; streak = 0; totalCount = 0; }
+  totalCount += queue.length;
+  refreshStats();
+}
+
+function drawStringLabels(h) {
+  ctx.font = "12px sans-serif"; ctx.fillStyle = "#8891a7"; ctx.textAlign = "center";
+  for (let i = 0; i < 6; i++) {
+    const y = laneY(i, h);
+    ctx.fillText(STRINGS[i].name, 16, y + 4);
+  }
+}
+
+function drawLyricStrip(w, h, dt) {
+  const top = h - LYRIC_STRIP_H;
+  ctx.fillStyle = "#0f1730";
+  ctx.fillRect(0, top, w, LYRIC_STRIP_H);
+  ctx.strokeStyle = "#2c3358";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, top); ctx.lineTo(w, top); ctx.stroke();
+  ctx.fillStyle = "#4fd1c5";
+  ctx.font = "bold 10px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("LYRICS", 8, top + 14);
+
+  const midY = h - LYRIC_STRIP_H / 2 + 6;
+  if (!currentLyricTicker) {
+    ctx.fillStyle = "#5a6482";
+    ctx.font = "italic 12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("(no lyrics available for this song)", w / 2, midY);
+    return;
+  }
+
+  if (lyricDelayRemaining > 0) {
+    lyricDelayRemaining -= dt;
+    ctx.fillStyle = "#f6ad55";
+    ctx.font = "italic 12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`Lyrics starting in ${Math.max(0, Math.ceil(lyricDelayRemaining))}s…`, w / 2, midY);
+    return;
+  }
+
+  ctx.font = "16px sans-serif";
+  const textWidth = ctx.measureText(currentLyricTicker).width;
+  const gap = 100;
+  const cycle = textWidth + gap;
+  lyricOffset += lyricSpeed * dt;
+  if (lyricOffset > cycle) lyricOffset -= cycle;
+  const x = w - lyricOffset;
+  ctx.fillStyle = "#e2e8f0";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(currentLyricTicker, x, midY);
+  ctx.fillText(currentLyricTicker, x + cycle, midY);
+  ctx.textBaseline = "alphabetic";
+}
+
+function gameLoop(ts) {
+  if (!lastTime) lastTime = ts;
+  const dt = (ts - lastTime) / 1000;
+  lastTime = ts;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#0b0e1c"; ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = "#26305a"; ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    const y = laneY(i, h);
+    ctx.beginPath(); ctx.moveTo(LEFT_MARGIN, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  drawStringLabels(h);
+
+  const hitLineBottom = mode === 'chords' ? h - LYRIC_STRIP_H : h - 10;
+  ctx.strokeStyle = "#4fd1c5"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(HIT_LINE_X, 10); ctx.lineTo(HIT_LINE_X, hitLineBottom); ctx.stroke();
+
+  const currentMidi = window.__lastNote ? window.__lastNote.midi : null;
+  let allDone = true;
+
+  if (mode === 'lead') {
+    for (const n of queue) {
+      if (!n.hit && !n.missed) allDone = false;
+      n.x -= speed * dt;
+
+      if (!n.played && n.x <= HIT_LINE_X) {
+        n.played = true;
+        const durSec = Math.max(0.12, (n.dur * n.beatPx) / speed);
+        playSynthNote(noteToFreq(n.midi), durSec);
+      }
+
+      if (!n.sf) continue;
+      const y = laneY(n.sf.stringIdx, h);
+      const radius = 13 + n.dur * 4;
+
+      if (!n.hit && !n.missed) {
+        if (Math.abs(n.x - HIT_LINE_X) < 24 && currentMidi === n.midi) {
+          n.hit = true; hitCount++; score += 100 + streak * 5; streak++; refreshStats();
+        } else if (n.x < HIT_LINE_X - 40) { n.missed = true; streak = 0; refreshStats(); }
+      }
+      ctx.beginPath(); ctx.arc(n.x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = n.hit ? "#68d391" : n.missed ? "#fc8181" : "#f6ad55";
+      ctx.globalAlpha = (n.hit || n.missed) ? 0.45 : 1; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = "#0b0e1c"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(n.sf.fret), n.x, y);
+    }
+  } else {
+    let focusChord = null, focusDist = Infinity;
+    drawLyricStrip(w, h, dt);
+
+    for (const n of queue) {
+      if (!n.hit && !n.missed) allDone = false;
+      n.x -= speed * dt;
+      const shape = getChordShape(n.chord);
+      const leftEdge = n.x - n.width / 2, rightEdge = n.x + n.width / 2;
+      const overLine = leftEdge < HIT_LINE_X && rightEdge > HIT_LINE_X;
+
+      if (!n.played && n.x <= HIT_LINE_X) {
+        n.played = true;
+        const durSec = Math.max(0.25, (n.dur * n.beatPx) / speed);
+        let freqs;
+        if (shape.frets) {
+          freqs = shape.frets
+            .map((f, i) => (f === null ? null : noteToFreq(STRINGS[i].midi + f)))
+            .filter(f => f !== null);
+        } else {
+          freqs = shape.pcs.map(pc => noteToFreq(60 + pc));
+        }
+        playSynthChord(freqs, durSec);
+      }
+
+      if (overLine && Math.abs(n.x - HIT_LINE_X) < focusDist) { focusDist = Math.abs(n.x - HIT_LINE_X); focusChord = n.chord; }
+
+      if (!n.hit && !n.missed) {
+        if (overLine && window.__lastChroma) {
+          const s = chordMatchScore(window.__lastChroma, shape.pcs);
+          if (s > 0.22) n.matchedMs += dt * 1000;
+        }
+        if (n.matchedMs > 180) { n.hit = true; hitCount++; score += 150 + streak * 8; streak++; refreshStats(); }
+        else if (rightEdge < HIT_LINE_X) { n.missed = true; streak = 0; refreshStats(); }
+      }
+
+      const blockBottom = h - LYRIC_STRIP_H;
+      ctx.fillStyle = n.hit ? "rgba(104,211,145,0.18)" : n.missed ? "rgba(252,129,129,0.18)" : "rgba(246,173,85,0.16)";
+      ctx.fillRect(leftEdge, 20, n.width, blockBottom - 20);
+      ctx.strokeStyle = n.hit ? "#68d391" : n.missed ? "#fc8181" : "#f6ad55";
+      ctx.lineWidth = 2; ctx.strokeRect(leftEdge, 20, n.width, blockBottom - 20);
+
+      ctx.fillStyle = "#e2e8f0"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(n.chord, n.x, 36);
+
+      if (shape.frets) {
+        for (let s = 0; s < 6; s++) {
+          const y = laneY(s, h);
+          const f = shape.frets[s];
+          ctx.font = "11px sans-serif"; ctx.fillStyle = "#c9d4e8";
+          ctx.fillText(f === null ? "x" : String(f), n.x, y + 4);
+        }
+      }
+    }
+    if (focusChord) renderChordDiagram(focusChord);
+  }
+
+  if (allDone && queue.length) {
+    if (loopEnabled) {
+      buildQueue(true);
+      animId = requestAnimationFrame(gameLoop);
+      return;
+    }
+    ctx.fillStyle = "#e2e8f0"; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Done! Final score: " + score, w / 2, h / 2);
+    running = false; hasStarted = false; startBtn.textContent = "▶ Start"; startBtn.classList.remove('btn-pause'); return;
+  }
+  if (running) animId = requestAnimationFrame(gameLoop);
+}
+
+let hasStarted = false;
+
+startBtn.addEventListener('click', () => {
+  ensurePlaybackCtx();
+
+  if (!exerciseSel.value) { showToast('Load a songs folder and pick a song first.'); return; }
+
+  if (running) {
+    running = false;
+    if (animId) cancelAnimationFrame(animId);
+    startBtn.textContent = "▶ Start";
+    startBtn.classList.remove('btn-pause');
+    return;
+  }
+
+  if (!hasStarted) {
+    buildQueue(false);
+    hasStarted = true;
+      applyBpmSpeed();
+  }
+  running = true;
+  lastTime = null;
+  startBtn.textContent = "⏸ Pause";
+  startBtn.classList.add('btn-pause');
+  noMicNote.style.display = micReady ? 'none' : '';
+  animId = requestAnimationFrame(gameLoop);
+});
+
+resetBtn.addEventListener('click', () => {
+  running = false; if (animId) cancelAnimationFrame(animId);
+  hasStarted = false;
+  score = 0; streak = 0; hitCount = 0; totalCount = 0; queue = []; lyricOffset = 0; lyricDelayRemaining = 0;
+  refreshStats();
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+  startBtn.textContent = "▶ Start";
+  startBtn.classList.remove('btn-pause');
+  noMicNote.style.display = 'none';
+});
+
+localStorage.removeItem('sageGuitarTrainer.customSongs');
+localStorage.removeItem('sageGuitarTrainer.hiddenBuiltins');
+localStorage.removeItem('sageGuitarTrainer.labelOverrides');
+
+(async function init() {
+  SONGS = loadSongsCache();
+  updateSongsFolderStatus();
+  await loadFromFolderIfLinked();
+  await restoreBpmDirectory();
+  rebuildSongDropdown();
+  applySelectedSongBpm();
+  renderCustomSongList();
+  refreshStats();
+})();
+
+
+/* LOCAL_SONGS_DROPDOWN_REPAIR */
+/*
+   Direct, file-only song dropdown implementation.
+   This intentionally ignores browser custom-song data, hide lists, label
+   overrides, and the old songs-folder cache. SONGS is populated only by
+   the JSON files selected with Load Songs Folder.
+*/
+function getSong(key) {
+  return SONGS[key] || null;
+}
+
+function rebuildSongDropdown() {
+  const previous = exerciseSel.value;
+  exerciseSel.innerHTML = '';
+
+  const entries = Object.entries(SONGS)
+    .sort(([, a], [, b]) => (a.label || '').localeCompare(b.label || ''));
+
+  for (const [key, song] of entries) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = song.label || key;
+    exerciseSel.appendChild(option);
+  }
+
+  if (entries.some(([key]) => key === previous)) {
+    exerciseSel.value = previous;
+  }
+
+  updateModeAvailability();
+}
+
+function renderLibrary() {
+  const entries = Object.entries(SONGS)
+    .sort(([, a], [, b]) => (a.label || '').localeCompare(b.label || ''));
+
+  if (!entries.length) {
+    libraryList.innerHTML = '<div style="color:var(--muted);">No song JSON files are loaded yet. Click Load Songs Folder and select your songs folder.</div>';
+    hiddenList.innerHTML = 'Local-song mode: songs are managed as JSON files in your songs folder.';
+    return;
+  }
+
+  libraryList.innerHTML = entries.map(([key, song]) => `
+    <div class="lib-row">
+      <span class="lib-tag builtin">${song.type === 'chords' ? 'Chords' : 'Lead'}</span>
+      <span style="flex:1; min-width:160px;">${song.label || key}</span>
+      <span style="color:var(--muted); font-size:0.75rem;">${key}.json</span>
+    </div>`).join('');
+
+  hiddenList.innerHTML = 'Local-song mode: edit, rename, add, or remove JSON files in your songs folder, then click Load Songs Folder again.';
+}
+
+
+
+/* FORCE_SONGS_FOLDER_LOADER_V2 */
+/*
+  This capture-phase handler replaces older folder-loader implementations.
+  stopImmediatePropagation prevents the legacy change handler from running
+  afterward and emptying/replacing the dropdown.
+*/
+function renderSongsFromLocalFiles() {
+  const current = exerciseSel.value;
+  exerciseSel.innerHTML = '';
+
+  const entries = Object.entries(SONGS)
+    .sort(([, a], [, b]) => String(a.label || '').localeCompare(String(b.label || '')));
+
+  for (const [key, song] of entries) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = song.label || key;
+    exerciseSel.appendChild(option);
+  }
+
+  if (entries.some(([key]) => key === current)) {
+    exerciseSel.value = current;
+  }
+
+  const selected = SONGS[exerciseSel.value];
+  if (!selected) {
+    songTypeBadge.style.display = 'none';
+    chordDiagramBox.style.display = 'none';
+    chordModeNote.style.display = 'none';
+    lyricsBtn.disabled = true;
+    return;
+  }
+
+  mode = selected.type === 'chords' ? 'chords' : 'lead';
+  songTypeBadge.style.display = '';
+  songTypeBadge.textContent = mode === 'chords' ? 'Chords' : 'Lead';
+  songTypeBadge.className = 'song-type-badge ' + mode;
+  chordDiagramBox.style.display = mode === 'chords' ? 'flex' : 'none';
+  chordModeNote.style.display = mode === 'chords' ? '' : 'none';
+  lyricsBtn.disabled = !selected.lyrics;
+  lyricsPanel.textContent = selected.lyrics || '';
+  currentLyricTicker = selected.lyrics ? flattenLyrics(selected.lyrics) : '';
+  lyricSpeedGroup.style.display = mode === 'chords' && currentLyricTicker ? 'flex' : 'none';
+}
+
+folderInput.addEventListener('change', async (event) => {
+  event.stopImmediatePropagation();
+
+  const jsonFiles = Array.from(folderInput.files || [])
+    .filter(file => file.name.toLowerCase().endsWith('.json'));
+
+  if (!jsonFiles.length) {
+    songsFolderStatus.textContent = '⚠ No JSON files found in selected folder';
+    showToast('No .json song files were found in the selected folder.', 5000);
+    return;
+  }
+
+  const loaded = {};
+  const rawFiles = new Map();
+  const paths = new Map();
+  const failures = [];
+
+  for (const file of jsonFiles) {
+    try {
+      const raw = JSON.parse(await file.text());
+      const key = file.name.replace(/\.json$/i, '');
+
+      if (!raw || typeof raw !== 'object') {
+        throw new Error('root is not an object');
+      }
+      if (raw.type !== 'lead' && raw.type !== 'chords') {
+        throw new Error('missing or invalid "type" (must be "lead" or "chords")');
+      }
+      if (raw.type === 'lead' && !Array.isArray(raw.leadNotes)) {
+        throw new Error('lead song is missing leadNotes');
+      }
+      if (raw.type === 'chords' && !Array.isArray(raw.chordProgression)) {
+        throw new Error('chords song is missing chordProgression');
+      }
+
+      loaded[key] = normalizeSongJson(raw, key);
+      rawFiles.set(key, raw);
+      paths.set(key, file.webkitRelativePath || file.name);
+    } catch (error) {
+      failures.push(file.name + ': ' + error.message);
+      console.error('Song JSON failed:', file.name, error);
+    }
+  }
+
+  SONGS = loaded;
+  rawSongFiles = rawFiles;
+  songRelativePaths = paths;
+  selectedSongsRoot = (jsonFiles[0]?.webkitRelativePath || '').split('/')[0];
+  rebuildSongDropdown();
+  applySelectedSongBpm();
+  renderLibrary();
+
+  const count = Object.keys(loaded).length;
+  songsFolderStatus.textContent = failures.length
+    ? `⚠ ${count} loaded, ${failures.length} failed — see browser console`
+    : `✅ ${count} song${count === 1 ? '' : 's'} loaded`;
+
+  if (failures.length) {
+    showToast(`Loaded ${count} songs. ${failures.length} JSON file(s) failed; press F12 → Console for filenames/errors.`, 7000);
+  } else {
+    showToast(`Loaded ${count} local song JSON file(s).`, 4000);
+  }
+}, true);
+
+
+
+/* SONG_FAVOURITES_V1 */
+/*
+   Favourites are UI-only preferences. They store only JSON song filenames
+   in localStorage; song content still comes exclusively from songs/*.json.
+*/
+const FAVOURITES_KEY = 'sageGuitarTrainer.songFavourites';
+const favouriteCheckbox = document.getElementById('favouriteCheckbox');
+
+function loadFavourites() {
+  try { return new Set(JSON.parse(localStorage.getItem(FAVOURITES_KEY) || '[]')); }
+  catch (e) { return new Set(); }
+}
+function saveFavourites(favourites) {
+  localStorage.setItem(FAVOURITES_KEY, JSON.stringify([...favourites]));
+}
+function isFavourite(key) {
+  return loadFavourites().has(key);
+}
+function syncFavouriteCheckbox() {
+  favouriteCheckbox.checked = Boolean(exerciseSel.value && isFavourite(exerciseSel.value));
+  favouriteCheckbox.disabled = !exerciseSel.value;
+}
+
+favouriteCheckbox.addEventListener('change', () => {
+  const key = exerciseSel.value;
+  if (!key) return;
+  const favourites = loadFavourites();
+  if (favouriteCheckbox.checked) favourites.add(key);
+  else favourites.delete(key);
+  saveFavourites(favourites);
+  rebuildSongDropdown();
+  exerciseSel.value = key;
+  syncFavouriteCheckbox();
+  updateModeAvailability();
+});
+
+exerciseSel.addEventListener('change', syncFavouriteCheckbox);
+
+/* Override the dropdown renderer so favourites sort first, then songs
+   remain alphabetic within their favourite/non-favourite group. */
+function rebuildSongDropdown() {
+  const previous = exerciseSel.value;
+  const favourites = loadFavourites();
+  const hidden = loadHidden();
+  const overrides = loadLabelOverrides();
+
+  const entries = Object.entries(SONGS)
+    .filter(([key]) => !hidden.includes(key))
+    .sort(([keyA, songA], [keyB, songB]) => {
+      const favA = favourites.has(keyA) ? 0 : 1;
+      const favB = favourites.has(keyB) ? 0 : 1;
+      if (favA !== favB) return favA - favB;
+      const labelA = overrides[keyA] || songA.label || keyA;
+      const labelB = overrides[keyB] || songB.label || keyB;
+      return labelA.localeCompare(labelB);
+    });
+
+  exerciseSel.innerHTML = '';
+  for (const [key, song] of entries) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = (favourites.has(key) ? '★ ' : '') + (overrides[key] || song.label || key);
+    exerciseSel.appendChild(option);
+  }
+
+  if (entries.some(([key]) => key === previous)) {
+    exerciseSel.value = previous;
+  }
+
+  updateModeAvailability();
+  syncFavouriteCheckbox();
+}
+
+
+
+/* AUTO_START_SELECTED_SONG_V1 */
+/*
+   Switching songs during an active run immediately starts the selected
+   replacement song. It deliberately resets score/streak/hits because
+   those belong to the previous song, while preserving current tempo,
+   sound, lyric-speed, microphone, and loop settings.
+*/
+exerciseSel.addEventListener('change', () => {
+  if (!running) return;
+
+  if (animId) cancelAnimationFrame(animId);
+  running = false;
+  hasStarted = false;
+  queue = [];
+  score = 0;
+  streak = 0;
+  hitCount = 0;
+  totalCount = 0;
+  lyricOffset = 0;
+  lyricDelayRemaining = 0;
+  refreshStats();
+
+  // Other change listeners have already derived mode from the selected
+  // JSON song type before this handler runs.
+  buildQueue(false);
+  hasStarted = true;
+  applyBpmSpeed();
+
+  running = true;
+  lastTime = null;
+  startBtn.textContent = '⏸ Pause';
+  startBtn.classList.add('btn-pause');
+  noMicNote.style.display = micReady ? 'none' : '';
+  animId = requestAnimationFrame(gameLoop);
+  showToast('Started: ' + (getSong(exerciseSel.value)?.label || 'selected song'));
+});
+
+
+/* File-backed BPM; song content is never loaded from browser storage. */
+let rawSongFiles = new Map();
+let songRelativePaths = new Map();
+let selectedSongsRoot = '';
+let bpmDirectoryHandle = null;
+const bpmSaveStatus = document.getElementById('bpmSaveStatus');
+const downloadBpmBtn = document.getElementById('downloadBpmBtn');
+
+function applySelectedSongBpm() {
+  const song = SONGS[exerciseSel.value];
+  if (song && Number.isFinite(song.bpm) && song.bpm >= 30 && song.bpm <= 300) {
+    bpmInput.value = String(song.bpm);
+  }
+  applyBpmSpeed();
+}
+exerciseSel.addEventListener('change', applySelectedSongBpm, true);
+
+async function selectedSongFileHandle() {
+  const key = exerciseSel.value;
+  const relative = songRelativePaths.get(key);
+  if (!bpmDirectoryHandle || !relative) throw new Error('Load and link the songs folder first.');
+  const parts = relative.split('/');
+  if (selectedSongsRoot && parts[0] !== selectedSongsRoot) throw new Error('Songs folder mismatch.');
+  if (parts[0] === selectedSongsRoot) parts.shift();
+  let dir = bpmDirectoryHandle;
+  while (parts.length > 1) dir = await dir.getDirectoryHandle(parts.shift(), {create:false});
+  if (parts.pop() !== key + '.json') throw new Error('Song filename mismatch.');
+  return dir.getFileHandle(key + '.json', {create:false});
+}
+
+
+
+const BPM_FOLDER_HANDLE_KEY = 'bpmSongsFolderHandle';
+let rememberedBpmDirectory = null;
+
+async function loadSongsFromWritableDirectory(directory) {
+  const loaded = {};
+  const rawFiles = new Map();
+  const paths = new Map();
+  const failures = [];
+  async function scan(dir, prefix) {
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind === 'directory') {
+        await scan(handle, prefix + name + '/');
+      } else if (name.toLowerCase().endsWith('.json') && name !== 'sage-songs-library.json') {
+        try {
+          const raw = JSON.parse(await (await handle.getFile()).text());
+          if (!raw || !['lead','chords'].includes(raw.type)) throw Error('type must be lead or chords');
+          const field = raw.type === 'lead' ? 'leadNotes' : 'chordProgression';
+          if (!Array.isArray(raw[field])) throw Error(field + ' must be an array');
+          const key = name.replace(/\.json$/i, '');
+          if (loaded[key]) throw Error('duplicate filename: ' + name);
+          loaded[key] = normalizeSongJson(raw, key);
+          rawFiles.set(key, raw);
+          paths.set(key, directory.name + '/' + prefix + name);
+        } catch (error) {
+          failures.push(prefix + name + ': ' + error.message);
+        }
+      }
+    }
+  }
+  await scan(directory, '');
+  if (!Object.keys(loaded).length) {
+    bpmSaveStatus.textContent = 'No valid song JSON files found; nothing was replaced.';
+    if (failures.length) console.warn('Invalid song files:', failures);
+    return;
+  }
+  if (running) {
+    running = false;
+    cancelAnimationFrame(animId);
+    hasStarted = false;
+    startBtn.textContent = '▶ Start';
+    startBtn.classList.remove('btn-pause');
+  }
+  SONGS = loaded;
+  rawSongFiles = rawFiles;
+  songRelativePaths = paths;
+  selectedSongsRoot = directory.name;
+  bpmDirectoryHandle = directory;
+  rebuildSongDropdown();
+  applySelectedSongBpm();
+  renderLibrary();
+  songsFolderStatus.textContent = `✅ ${Object.keys(loaded).length} songs loaded`;
+  bpmSaveStatus.textContent = failures.length
+    ? `BPM linked; ${failures.length} invalid JSON file(s) (see console).`
+    : 'BPM saving ready';
+  if (failures.length) console.warn('Invalid song files:', failures);
+  downloadBpmBtn.hidden = true;
+}
+
+async function restoreBpmDirectory() {
+  if (!window.showDirectoryPicker) return;
+  try {
+    const handle = await idbGet(BPM_FOLDER_HANDLE_KEY);
+    if (!handle) return;
+    rememberedBpmDirectory = handle;
+    const permission = await handle.queryPermission({mode:'readwrite'});
+    if (permission === 'granted') await loadSongsFromWritableDirectory(handle);
+    else bpmSaveStatus.textContent = 'Click Load Songs Folder to re-enable file access.';
+  } catch (error) {
+    console.warn('Cannot restore songs folder permission:', error);
+  }
+}
+
+document.getElementById('loadSongsBtn').addEventListener('click', async () => {
+  if (!window.showDirectoryPicker) {
+    bpmDirectoryHandle = null;
+    rememberedBpmDirectory = null;
+    bpmSaveStatus.textContent = 'Read-only folder load; download updated JSON to save BPM.';
+    folderInput.value = '';
+    folderInput.click();
+    return;
+  }
+  try {
+    let handle = rememberedBpmDirectory;
+    if (handle) {
+      let permission = await handle.queryPermission({mode:'readwrite'});
+      if (permission !== 'granted') permission = await handle.requestPermission({mode:'readwrite'});
+      if (permission !== 'granted') handle = null;
+    }
+    if (!handle) handle = await window.showDirectoryPicker({mode:'readwrite'});
+    await loadSongsFromWritableDirectory(handle);
+    rememberedBpmDirectory = handle;
+    try { await idbSet(BPM_FOLDER_HANDLE_KEY, handle); }
+    catch (error) { console.warn('Could not remember folder across sessions:', error); }
+  } catch (error) {
+    if (error.name === 'AbortError') return;
+    console.warn('Direct folder load unavailable:', error);
+    bpmDirectoryHandle = null;
+    bpmSaveStatus.textContent = 'Direct folder access unavailable. Loaded songs read-only; download JSON to save BPM.';
+    folderInput.value = '';
+    folderInput.click();
+  }
+});
+
+async function saveSelectedBpm() {
+  const key = exerciseSel.value;
+  if (!SONGS[key]) return;
+  const number = Number(bpmInput.value);
+  if (!Number.isFinite(number) || number < 30 || number > 300) {
+    bpmSaveStatus.textContent = 'Enter a BPM from 30 to 300.';
+    return;
+  }
+  const bpm = Math.round(number);
+  bpmInput.value = String(bpm);
+  applyBpmSpeed();
+  if (!bpmDirectoryHandle) {
+    bpmSaveStatus.textContent = 'BPM changed for this session; link folder or download JSON to save.';
+    downloadBpmBtn.hidden = false;
+    return;
+  }
+  try {
+    const handle = await selectedSongFileHandle();
+    const raw = JSON.parse(await (await handle.getFile()).text());
+    raw.bpm = bpm;
+    const writer = await handle.createWritable();
+    await writer.write(JSON.stringify(raw, null, 2) + '\n');
+    await writer.close();
+    SONGS[key].bpm = bpm;
+    rawSongFiles.set(key, raw);
+    bpmSaveStatus.textContent = `Saved ${bpm} BPM to ${key}.json`;
+    downloadBpmBtn.hidden = true;
+  } catch (error) {
+    bpmSaveStatus.textContent = `Couldn't save ${key}.json — use Download Updated JSON.`;
+    downloadBpmBtn.hidden = false;
+    console.error('BPM save failed', error);
+  }
+}
+bpmInput.addEventListener('change', saveSelectedBpm);
+
+downloadBpmBtn.addEventListener('click', () => {
+  const key = exerciseSel.value;
+  const song = rawSongFiles.get(key);
+  const bpm = Number(bpmInput.value);
+  if (!song || !Number.isFinite(bpm) || bpm < 30 || bpm > 300) return;
+  const blob = new Blob([JSON.stringify({...song, bpm:Math.round(bpm)},null,2)+'\n'], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = key + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  bpmSaveStatus.textContent = `Downloaded ${key}.json; replace that file in songs/ and reload the folder.`;
+});
+
+
+/* SAGE_DELETE_LOCAL_SONGS_V1 */
+/* A removal first copies the exact JSON into songs/_deleted as a .bak file.
+   Only then is the original JSON removed. The .bak is not loaded as a song. */
+function renderLibrary() {
+  libraryList.replaceChildren();
+  const items = Object.entries(SONGS).sort((a, b) =>
+    String(a[1].label || a[0]).localeCompare(String(b[1].label || b[0])));
+  hiddenList.textContent = 'To restore a removed song, move its .json.bak file from songs/_deleted back into songs/ and remove the .bak suffix, then reload the folder.';
+
+  if (!items.length) {
+    libraryList.textContent = 'No song files loaded. Click Load Songs Folder.';
+    return;
+  }
+  for (const [key, song] of items) {
+    const row = document.createElement('div');
+    row.className = 'lib-row';
+    const type = document.createElement('span');
+    type.className = 'lib-tag builtin';
+    type.textContent = song.type === 'chords' ? 'Chords' : 'Lead';
+    const title = document.createElement('span');
+    title.style.cssText = 'flex:1; min-width:160px;';
+    title.textContent = song.label || key;
+    const filename = document.createElement('span');
+    filename.style.cssText = 'color:var(--muted); font-size:0.75rem;';
+    filename.textContent = key + '.json';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'danger';
+    remove.textContent = 'Delete…';
+    remove.title = 'Move this song JSON into songs/_deleted';
+    remove.disabled = !bpmDirectoryHandle;
+    remove.addEventListener('click', () => removeSongFile(key, song, remove));
+    row.append(type, title, filename, remove);
+    libraryList.append(row);
+  }
+}
+
+async function removeSongFile(key, song, button) {
+  const relative = songRelativePaths.get(key);
+  const root = bpmDirectoryHandle;
+  if (!root || !relative) {
+    showToast('Load Songs Folder with write permission before deleting.', 5000);
+    return;
+  }
+  const parts = relative.split('/');
+  if (parts[0] !== selectedSongsRoot || root.name !== selectedSongsRoot) {
+    showToast('Linked folder does not match the loaded songs folder.', 5000);
+    return;
+  }
+  parts.shift();
+  const name = parts.pop();
+  if (name !== key + '.json' || !name || !parts.every(p => p && p !== '..')) {
+    showToast('Unsafe song path; nothing was deleted.', 5000);
+    return;
+  }
+  const shownPath = relative;
+  if (!window.confirm(`Remove “${song.label || key}”?\n\nFile: ${shownPath}\n\nThe original JSON will first be copied into songs/_deleted as a .bak file, then removed from the songs list.`)) return;
+
+  button.disabled = true;
+  try {
+    let permission = await root.queryPermission({mode:'readwrite'});
+    if (permission !== 'granted') permission = await root.requestPermission({mode:'readwrite'});
+    if (permission !== 'granted') throw new Error('Write permission not granted');
+
+    let parent = root;
+    for (const segment of parts) parent = await parent.getDirectoryHandle(segment, {create:false});
+    const original = await parent.getFileHandle(name, {create:false});
+    const contents = await (await original.getFile()).text();
+
+    const trash = await root.getDirectoryHandle('_deleted', {create:true});
+    const backupName = `${key}-${Date.now()}.json.bak`;
+    const backup = await trash.getFileHandle(backupName, {create:true});
+    const writer = await backup.createWritable();
+    await writer.write(contents);
+    await writer.close();
+
+    await parent.removeEntry(name);
+    if (running || hasStarted) resetBtn.click();
+    delete SONGS[key];
+    songRelativePaths.delete(key);
+    rawSongFiles.delete(key);
+    if (typeof loadFavourites === 'function' && typeof saveFavourites === 'function') {
+      const favourites = loadFavourites();
+      favourites.delete(key);
+      saveFavourites(favourites);
+    }
+    rebuildSongDropdown();
+    if (typeof applySelectedSongBpm === 'function') applySelectedSongBpm();
+    renderLibrary();
+    songsFolderStatus.textContent = `✅ ${Object.keys(SONGS).length} songs loaded`;
+    showToast(`Removed ${name}. Backup: songs/_deleted/${backupName}`, 6500);
+  } catch (error) {
+    button.disabled = false;
+    console.error('Song removal failed', error);
+    showToast('Could not remove song. Original file was not intentionally changed; check Console for details.', 6500);
+  }
+}
+
+</script>
+</body>
+</html>
