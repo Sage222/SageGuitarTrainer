@@ -1,12 +1,12 @@
 # Sage Guitar Trainer
 
-An offline, portable HTML5 guitar practice app with a scrolling six-string highway, optional microphone scoring, lead-note and chord exercises, a tuner, and local song JSON files. No build step, account, or server is required.
+Sage Guitar Trainer is a portable, offline-first HTML5 guitar-practice app. It provides a six-string scrolling tab highway, lead and chord exercises, BPM timing, optional microphone scoring, a tuner, plucked reference playback, individual JSON song files, and local song management.
 
-> This README describes the current folder-based app **after** applying the BPM, song-deletion, and plucked-sound updates. If you restored an earlier HTML backup, some controls described below may not be present.
+This README describes the latest folder-based version. The app runs by opening `riff_trainer.html` directly in a modern browser; no server, build process, Node installation, account, or internet connection is required.
 
 ## Quick start
 
-Keep the app and your song files together:
+Recommended layout:
 
 ```text
 SageGuitarTrainer/
@@ -16,35 +16,40 @@ SageGuitarTrainer/
     ├── warmup-chromatic-e.json
     ├── ode-to-joy-lead.json
     ├── ode-to-joy-chords.json
-    ├── your-own-song.json
-    └── _deleted/                  # Created if you delete a song in the app
+    └── my-song.json
 ```
 
-1. Open `riff_trainer.html` in Brave or another supported browser.
-2. Click **Load Songs Folder** and select `songs/`. The app reads the individual `.json` files; it does not use `songs.js` or the old browser-stored song library.
-3. Choose a song in **Practice**. Its JSON `type` selects the Lead or Chords highway automatically.
-4. Click **Start**. Click the same button to pause; its label returns to **Start** when paused. **Reset** restarts the exercise from the beginning.
-5. Optionally click **Enable Mic** to score your playing. You can still run the highway and hear the demonstration sound without a mic.
+1. Open `riff_trainer.html` in Brave, Chrome, or Edge.
+2. Click **Load Songs Folder** and select `songs/`.
+3. Pick an item from **Song / Exercise**.
+4. Set the desired BPM.
+5. Click the green **Start** button.
+6. Optionally enable the microphone for scoring.
 
-If you move the app to another computer, copy `riff_trainer.html` and the entire `songs/` folder. Select the folder again when prompted. Browser permissions and favourites are not part of the song files.
+Copy the entire folder to move the trainer to another computer. Browser permissions and favourite status may need to be re-established, but the songs themselves remain in `songs/`.
 
-## Practice controls
+## Main controls
 
-- **Song / Exercise:** Selects a loaded JSON file. A badge shows Lead or Chords; there is no separate mode switch.
-- **★ Favourite:** Marks the selected song and moves favourites to the top of the dropdown. This is a browser-side display preference, not song content in the JSON file.
-- **BPM:** Controls the timing in beats per minute. You can change it while playing. A song with a valid `bpm` field loads that value when selected.
-- **Start / Pause / Reset:** Start is green, Pause is red, and Reset sits beside it. Switching songs while a run is active starts the newly selected song.
-- **Repeat Forever:** Repeats the selected exercise until stopped.
-- **Note Sound and Note volume:** Turns demonstration playback on or off and adjusts its loudness. Note Sound starts **off**. With the plucked-sound update installed, playback uses a synthesized string pluck rather than the original sustained triangle tone. Chord tones are played in a short staggered strum.
-- **Lyrics and Lyrics speed:** When lyrics are available for a chord exercise, you can open the full text panel or follow the independent scrolling lyric strip. Its speed is independent of BPM and begins after a four-second delay.
+| Control | Purpose |
+|---|---|
+| Song / Exercise | Selects a local song JSON file |
+| Lead / Chords badge | Shows the song type declared by its JSON file |
+| ★ Favourite | Moves the selected song to the top of the list; this is a browser UI preference only |
+| BPM | True beats-per-minute timing; editable while playing |
+| Start / Pause | Green while stopped, red while playing; pauses/resumes the current queue |
+| Reset | Clears score, queue, lyric position, and playback state |
+| Repeat Forever | Repeats the song until Reset |
+| Note Sound | Plays a plucked synthetic reference note/chord at the hit line |
+| Note volume | Adjusts reference playback without affecting mic input |
+| Lyrics | Opens the full lyric panel when a chord JSON contains lyrics |
 
-The demonstration plays the notes or chords *requested by the highway*, not a recording of the original song. Turning it on while scoring through a microphone can let speakers bleed into the mic; headphones are recommended.
+Changing song while it is playing immediately resets the run and starts the selected replacement song. If no microphone is enabled, the highway still works as a visual/audio preview but cannot score hits.
 
-## Song JSON format
+## Song files
 
-Each file in `songs/` represents **one exercise**. Use a distinct filename for each. A composition with both parts should have two files, such as `example-lead.json` and `example-chords.json`.
+Each song is one JSON file. The `type` property decides the practice mode; there is no separate Lead/Chord mode button.
 
-Lead example:
+### Lead song
 
 ```json
 {
@@ -56,9 +61,9 @@ Lead example:
 }
 ```
 
-Each lead pair is `[MIDI pitch, duration in beats]`. The app finds a playable string/fret for that pitch in standard tuning; the JSON does **not** specify the exact string or fret from a source tablature. Note sound follows the MIDI pitch and the beat duration.
+`leadNotes` contains `[MIDI pitch, durationInBeats]` pairs. The app selects a playable standard-tuning string/fret position for each pitch. It does not currently preserve an original tab's exact string/fret choice.
 
-Chord example:
+### Chord song
 
 ```json
 {
@@ -67,36 +72,124 @@ Chord example:
   "bpm": 90,
   "repeat": 1,
   "chordProgression": [["G", 4], ["D", 4], ["Em", 4], ["C", 4]],
-  "lyrics": "Optional text for the lyric display."
+  "lyrics": "Optional text for the lyrics panel and ticker."
 }
 ```
 
-Each chord pair is `[chord name, duration in beats]`. Use `repeat: 1` when the JSON already contains the complete sequence; larger values replay the entire sequence that many times. Optional `bpm` is the starting practice tempo, not necessarily a verified recording tempo.
+`chordProgression` contains `[chordName, durationInBeats]` pairs. Use `repeat: 1` if the JSON already contains the full sequence. Lead songs default to three repeats when `repeat` is omitted; chord songs default to two.
 
-The app has several common chord shapes and derives movable barre shapes for other supported names. Unusual slash/extended chords may not have the exact fingering of a particular recording. The microphone's chord recognition is approximate.
+## BPM
 
-## Importing music
+The timing model is musical:
 
-**Import Tab** accepts pasted chord-and-lyric text. Use **Parse Preview**, then save: the browser downloads an individual `*-chords.json` file. Put that file into `songs/` and click **Load Songs Folder** again. Imports are chord exercises, not lead transcriptions.
+```text
+seconds per beat = 60 / BPM
+```
 
-For lead, use an individual `type: "lead"` JSON such as the supplied exercises, or convert a structured MIDI, MusicXML, or Guitar Pro part separately. Direct PDF-to-lead-tab import is **not** implemented. Printed/ASCII tablature often lacks reliable note durations and may have multiple guitar parts, so any conversion needs review. An easy lead practice arrangement may deliberately omit slides, bends, hammer-ons, simultaneous notes, or the recording's exact fingering.
+All note and chord durations are expressed in beats. BPM changes update scrolling, note duration, chord duration, and reference playback together.
 
-The old `songs.js` and `sage-songs-library.json` are **legacy** data formats; the new song picker does not read them. Keep backups until you have verified that every song you want exists as a JSON in `songs/`.
+Add an optional `"bpm"` field to load a default tempo automatically. After changing it in the app, commit the field with Enter, the spinner arrows, or focus change to save it back to JSON when writable folder access is available.
 
-## Saving BPM and deleting songs
+## Loading and saving the songs folder
 
-If the browser grants write access when you click **Load Songs Folder**, committing a BPM edit (Enter or leave the field) writes `"bpm"` into the selected song's existing JSON file. The app can remember the folder handle, but the browser may require you to renew permission on a later visit. If writing is unavailable, use **Download Updated JSON**, replace the relevant file in `songs/`, and reload the folder. In Brave, the File System Access API may need to be enabled in `brave://flags/#file-system-access-api`.
+**Load Songs Folder** is the source-of-truth workflow. It reads every `.json` file in the selected folder and its subfolders. Reload after adding or editing files.
 
-With the song-deletion update installed, **Library → Delete…** asks for confirmation, copies the selected JSON to `songs/_deleted/` as a `.json.bak` file, and only then removes the original. `.bak` files are not loaded as songs. To restore one, move it back into `songs/`, remove the `.bak` suffix, and reload the folder. Delete is unavailable when the folder was loaded read-only.
+For direct BPM saves and song deletion, Brave/Chromium must grant write permission to that folder. Brave may require enabling:
 
-Changing a JSON on disk does not live-reload an already running exercise. Click **Load Songs Folder** to pick up added or edited files. Keep an additional copy of your `songs/` folder if you want a separate backup.
+```text
+brave://flags/#file-system-access-api
+```
 
-## Tuner and limitations
+If the browser cannot write, use the app's JSON download fallback and replace the file manually.
 
-The **Tuner** tab shows a detected note, frequency, cents from the chosen string, and an input-level meter. Standard tuning is E–A–D–G–B–e. Reference A4 is adjustable (default 440 Hz). For reliable single-note detection, use a clean signal and a quiet input; chords or heavy distortion can confuse a monophonic pitch detector.
+Avoid duplicate JSON basenames in subfolders because filenames without `.json` are used as song keys.
 
-- The plucked demonstration is synthesized, **not** sampled from a real guitar or the original recordings.
-- BPM makes the app's `[pitch/chord, beat duration]` events consistent in time. It cannot correct an inaccurate transcription or an import whose chord durations were guessed.
-- The independent lyric ticker is a reading aid, not a word-synchronised karaoke track.
-- The app runs without a mic for preview; hits cannot be scored without input.
-- Local folder reading/writing requires the permissions your browser supports. Song JSONs remain portable even when a browser-side preference or saved folder permission does not.
+## Playback and scoring
+
+### Note Sound
+
+Reference playback uses a lightweight plucked-string synth, not recorded guitar samples. Lead mode plays the requested pitch. Chord mode plays the diagrammed voicing with a short staggered strum. The feature starts off by default.
+
+Use headphones during microphone scoring so reference playback is not captured and mistaken for your own playing.
+
+### Microphone scoring
+
+- Lead mode uses monophonic pitch detection and works best with clean single notes.
+- Chord mode uses frequency-spectrum/chroma matching, so it is naturally less exact. Strum cleanly and let chords ring briefly.
+- The app can be used with no mic connected for visual practice and reference playback.
+
+## Tuner
+
+The Tuner supports standard tuning `E A D G B e`, auto/manual string selection, frequency display, cents offset, an input-level meter, and adjustable A4 calibration (default 440 Hz).
+
+Use a clean isolated string in a quiet environment. Heavy distortion, speaker bleed, chords, and noise make pitch detection less reliable.
+
+## Import Tab
+
+Import Tab accepts copied **chord-and-lyric** text. It detects common chord lines, section headings, slash chords, and some bar notation. It downloads an individual `*-chords.json` file; move that file into `songs/`, then reload the folder.
+
+Import Tab does not create lead songs. For lead material, create a `type: "lead"` JSON manually or convert structured MIDI, MusicXML, Guitar Pro, or carefully reviewed ASCII tab. PDF/image tabs are not directly supported because they often lack unambiguous note duration, BPM, and track information.
+
+## Library, favourites, deletion, and restore
+
+The Library lists loaded local JSON files and their Lead/Chords type.
+
+- **Favourite:** browser-only display preference; favourites sort first.
+- **Delete:** with writable folder permission, moves a backup to `songs/_deleted/` as a `.json.bak` file before deleting the source JSON.
+- **Restore:** move a backup out of `songs/_deleted/`, remove `.bak` so it ends in `.json`, then reload the folder.
+
+For safe external backups, copy the whole `songs/` directory.
+
+## Portable storage and legacy files
+
+Current song content belongs in `songs/*.json`. The previous `songs.js` and `sage-songs-library.json` formats are legacy data sources. Keep them as backups until all desired material has been migrated to individual JSON files.
+
+The Library's export/import controls, if present, are for legacy browser-backed custom-song data only. They are not the preferred library mechanism.
+
+## Troubleshooting
+
+### No songs appear
+
+- Select the actual `songs/` directory.
+- Confirm files end in `.json`, not `.json.txt`.
+- Check `"type"` is exactly `"lead"` or `"chords"`.
+- Lead files need `leadNotes`; chord files need `chordProgression`.
+- Press `F12` and inspect Console for JSON parse errors.
+
+### No highway or no sound
+
+- Select a valid song after loading the folder.
+- Click Reset, then Start.
+- Enable Note Sound and raise its volume.
+- Browser audio requires a user click; Start provides that gesture.
+
+### BPM will not save
+
+- Reload the songs folder and grant write access.
+- In Brave, enable the File System Access API flag if necessary.
+- Ensure the loaded folder and linked write folder are the same.
+- Use Download Updated JSON if direct writing is unavailable.
+
+## Limitations
+
+- This is a browser practice trainer, not a native ASIO/JUCE amp simulator.
+- The plucked sound is synthetic, not a sampled guitar.
+- Lead events are pitch-based rather than string/fret-aware.
+- Alternate tunings, capo-aware mapping, explicit rests, bends, slides, ties, and multi-track notation are not fully represented.
+- BPM cannot correct a guessed or inaccurate transcription.
+- Lyrics ticker timing is a reading aid, not word-perfect karaoke synchronization.
+
+## Copyright and personal use
+
+Keep modern-song content for private practice unless you have permission to distribute it. Chord charts, tabs, melody transcriptions, arrangements, and lyrics may be protected even when fan-created or widely posted. Do not redistribute a `songs/` folder containing material you do not have rights to share.
+
+## Recommended backup
+
+Back up this complete folder:
+
+```text
+riff_trainer.html
+songs/
+songs/_deleted/
+README.md
+```
